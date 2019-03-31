@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
 //process loop
@@ -15,6 +16,8 @@
 
 //buffersize should probably be passed in to each constructor, may definitely also want things like samplerate
 //but tbh these things are global and should not change during runtime
+struct graph;
+
 typedef struct {
   unsigned int buf_size;
   unsigned int sample_rate; 
@@ -30,11 +33,13 @@ typedef struct connection {
 
 typedef struct {
   float *buf;
+  int buf_size;
   char *name;
 } inlet;
 
 typedef struct {
   float *buf;
+  int buf_size;
   int num_connections;
   connection *connections;
   char *name;
@@ -52,52 +57,47 @@ typedef enum {
   SIN_OSC
 } node_type;
 
-typedef struct {
+typedef struct node {
   int id;
   node_type type;
   node_data data;
-  inlet **inlets;
+  inlet *inlets;
   unsigned int num_inlets;
-  outlet **outlets;
+  outlet *outlets;
   unsigned int num_outlets;
-  control **controls;
+  control *controls;
   unsigned int num_controls;
   unsigned int last_visited;// generation/timestamp thing
+  void (*process) (struct node *self);
+  void (*destroy) (struct node *self);
 } node;
 
-void free_connections(outlet *out) {
-  connection *ptr = out->connections;
+void free_connections(outlet out) {
+  connection *ptr = out.connections;
   connection *prev;
   while(ptr) {
     prev = ptr;
     ptr = ptr->next;
-    printf("freeing connection\n");
     free(prev);
   }
 }
 
-void free_node(node *n) {
-  if(n->num_inlets > 0) {
-    for(int i = 0; i < n->num_inlets; i++) {
-      free(n->inlets[i]->buf);
-      free(n->inlets[i]);
-    }
-    free(n->inlets);
+void destroy_inlets(node *n) {
+  for(int i = 0; i < n->num_inlets; i++) {
+    free(n->inlets[i].buf);
   }
- 
-  if(n->num_outlets > 0) {
-    for(int i = 0; i < n->num_outlets; i++) {
-      free_connections(n->outlets[i]);
-      free(n->outlets[i]->buf);
-      free(n->outlets[i]);
-    }
-    free(n->outlets);
-  }
-
-  if(n->num_controls > 0) {
-    free(n->controls);
-  }
+  free(n->inlets);
 }
+
+void destroy_outlets(node *n) {
+  for(int i = 0; i < n->num_outlets; i++) {
+    free_connections(n->outlets[i]);
+    free(n->outlets[i].buf);
+  }
+  free(n->outlets);
+}
+
+//TODO destroy_controls once I figure out what a control is
 
 //would call a list element "node" but I'm already calling audio objects nodes
 typedef struct list_elem {
@@ -162,7 +162,8 @@ void free_node_list(list_elem *ptr) {
     tmp = ptr;
     ptr = ptr->next;
     if(tmp->node) { 
-      free_node(tmp->node);
+      tmp->node->destroy(tmp->node);
+      free(tmp->node);
     }
     free(tmp);
   }
@@ -215,36 +216,23 @@ void visit_whole_table(node_table *nt) {
 }
 */
 
-typedef struct {
+typedef struct graph {
   //hashtable of nodes
   list_elem **node_table;
   //thing representing connections
   int next_id; //should monotonically increase
   int num_nodes; //dunno if I need this
   audio_options audio_opts;
+  //it's kind of confusing, but hw_inlets are the audio outputs
+  //hw_outlets are the audio inputs
   inlet *hw_inlets; //re-initing graph with different audio-options would be super annoying... but would kind of justify making inlets/outlets external to nodes
+  int num_hw_inlets;
   outlet *hw_outlets;
+  int num_hw_outlets;
   //inlet *inlet_pool;
   //outlet *inlet_pool; //inlets/outlets would grab these and free them during processing
   //inlet needed when copy from 
 } graph;
-
-graph *new_graph() {
-  audio_options a = {.buf_size = 64, .sample_rate = 44100, 
-                     .hw_in_channels = 2, .hw_out_channels = 2};
-  graph *g = malloc(sizeof(graph));
-  g->node_table = malloc(sizeof(list_elem *) * TABLE_SIZE);
-  for(int i = 0; i < TABLE_SIZE; i++) g->node_table[i] = NULL;
-  g->num_nodes = 0;
-  g->next_id = 0;
-  g->audio_opts = a;
-  return g;
-}
-
-//sample nodes
-//sin
-//dac
-//adc
 
 //new_graph
 //
@@ -257,20 +245,49 @@ graph *new_graph() {
 //
 //int add_node(struct graph g, node_type, default parameters?)
 //
-inlet *new_inlet(int buf_size, char *name) {
-  inlet *i = malloc(sizeof(inlet)); 
-  i->buf = malloc(sizeof(float) * buf_size);
-  i->name = name;
+inlet new_inlet(int buf_size, char *name) {
+  inlet i;
+  i.buf = calloc(buf_size, sizeof(float));
+  i.buf_size = buf_size;
+  i.name = name;
   return i;
 }
 
-outlet *new_outlet(int buf_size, char *name) {
-  outlet *o = malloc(sizeof(outlet));
-  o->buf = malloc(sizeof(float) * buf_size);
-  o->name = name;
-  o->connections = NULL;
+outlet new_outlet(int buf_size, char *name) {
+  outlet o;
+  o.buf = calloc(buf_size, sizeof(float));
+  o.buf_size = buf_size;
+  o.name = name;
+  o.num_connections = 0;
+  o.connections = NULL;
   return o;
 }
+
+graph *new_graph() {
+  audio_options a = {.buf_size = 64, .sample_rate = 44100, 
+                     .hw_in_channels = 2, .hw_out_channels = 2};
+  graph *g = malloc(sizeof(graph));
+  g->node_table = malloc(sizeof(list_elem *) * TABLE_SIZE);
+  for(int i = 0; i < TABLE_SIZE; i++) g->node_table[i] = NULL;
+  g->num_nodes = 0;
+  g->next_id = 0;
+  g->audio_opts = a;
+  g->num_hw_inlets = 2;
+  g->hw_inlets = malloc(sizeof(inlet) * 2);
+  g->hw_outlets = malloc(sizeof(outlet) * 2);
+  g->hw_inlets[0] = new_inlet(64, "left");
+  g->hw_inlets[1] = new_inlet(64, "right");
+  g->num_hw_outlets = 2;
+  g->hw_outlets[0] = new_outlet(64, "left");
+  g->hw_outlets[1] = new_outlet(64, "right");
+  return g;
+}
+
+//sample nodes
+//sin
+//dac
+//adc
+
 
 void add_connection(outlet *out, unsigned int in_node_id, unsigned int inlet_id) {
   //TODO detect cycles
@@ -282,7 +299,6 @@ void add_connection(outlet *out, unsigned int in_node_id, unsigned int inlet_id)
     ptr->in_node_id = in_node_id;
     ptr->inlet_id = inlet_id;
     out->connections = ptr;
-    printf("connected to %d, %d\n", in_node_id, inlet_id);
     return;
   }
   connection *prev = ptr;
@@ -296,24 +312,87 @@ void add_connection(outlet *out, unsigned int in_node_id, unsigned int inlet_id)
   ptr->next = NULL;
   ptr->in_node_id = in_node_id;
   ptr->inlet_id = inlet_id;
-  printf("connected but this time to %d, %d\n", in_node_id, inlet_id);
   prev->next = ptr; 
 }
 
-node *new_sin_osc() {
+typedef struct {
+  float phase;
+  float freq;
+  float inv_sr;
+} sin_data;
+
+void process_sin (struct node *self) {
+  float *buf = self->outlets[0].buf;
+  sin_data *data = self->data;
+  for(int i = 0; i < self->outlets[0].buf_size; i++) {
+    buf[i] = sinf(data->phase);
+    data->phase += data->freq * data->inv_sr * 2.0 * M_PI;
+  }
+}
+
+void process_dac (struct node *self) {
+  //dac does not need to be processed
+  //
+  //float *left = self->inlets[0].buf;
+  //float *right = self->inlets[1].buf;
+  //float *hw_left = g->hw_inlets[0].buf;
+  //float *hw_right = g->hw_inlets[0].buf;
+  //for(int i = 0; i < g->audio_opts.buf_size; i++) {
+  //  hw_left[i] += left[i];
+  //  hw_right[i] += right[i];
+  //}
+}
+
+void destroy_dac (struct node *self) {
+  return;
+}
+
+node *new_dac(graph *g) {
+  node *n = malloc(sizeof(node));
+  //n->type = 
+  n->process = &process_dac;
+  n->destroy = &destroy_dac;
+  n->num_inlets = g->num_hw_inlets;
+  n->num_outlets = 0;
+  n->num_controls = 0;
+  n->last_visited = -1;
+  n->inlets = g->hw_inlets;
+  return n;
+}
+
+void destroy_sin (struct node *self) {
+  destroy_inlets(self);
+  destroy_outlets(self);
+  free((sin_data*)self->data);
+}
+
+sin_data *new_sin_data(graph *g){
+  sin_data *d = malloc(sizeof(sin_data));
+  d->freq = 540.0;
+  d->phase = 0.0;
+  d->inv_sr = (1.0 / g->audio_opts.sample_rate);
+  return d;
+}
+
+node *new_sin_osc(graph *g) {
   node *n = malloc(sizeof(node));
   n->type = SIN_OSC;
+  n->data = new_sin_data(g);
+  n->process = &process_sin;
+  n->destroy = &destroy_sin;
   n->num_inlets = 2;//TODO create_inlet convenience function
   n->num_outlets = 1;
   n->num_controls = 0;
   n->last_visited = -1;
   n->inlets = malloc(sizeof(inlet) * 2);
-  n->inlets[0] = new_inlet(32, "phase");
-  n->inlets[1] = new_inlet(32, "freq");
+  n->inlets[0] = new_inlet(64, "phase");
+  n->inlets[1] = new_inlet(64, "freq");
   n->outlets = malloc(sizeof(outlet));
-  n->outlets[0] = new_outlet(32, "out");
+  n->outlets[0] = new_outlet(64, "out");
   return n;
 }
+
+
 //
 //dispatch - maybe don't need this yet, but will need something like it for handling OSC commands
 //TODO switch case dispatch is maybe negligibly faster maybe
@@ -337,18 +416,21 @@ node *get_node(graph *g, unsigned int id) {
   return NULL;
 }
 
-void process_graph(graph *g) {
-  for(int i = 0; i < 10; i++) {
-    //if(g->nodes[i] != NULL) printf("%d: %s\n", i, g->nodes[i]->inlets[1].name);
-  }
-}
-
 void free_graph(graph *g) {
   //free each node
   free_node_table(g->node_table);
-  //free(g->hw_inlets);
-  //free(g->hw_outlets);
+  for(int i = 0; i < g->num_hw_inlets; i++) {
+    free(g->hw_inlets[i].buf);
+  }
+  free(g->hw_inlets);
+
+  for(int i = 0; i < g->num_hw_outlets; i++) {
+    free(g->hw_outlets[i].buf);
+  }
+  free(g->hw_outlets);
+  free(g);
 }
+
 //constructs node based on node type dispatch
 //assigns id
 //adds node to hashtable
@@ -361,7 +443,7 @@ void connect(graph *g, unsigned int out_node_id, unsigned int outlet_id,
   node *in = get_node(g, in_node_id);
   if (out && in && inlet_id < in->num_inlets 
       && outlet_id < out->num_outlets) {
-    add_connection(out->outlets[outlet_id], in_node_id, inlet_id);
+    add_connection(&out->outlets[outlet_id], in_node_id, inlet_id);
   }
 }
 
@@ -374,7 +456,7 @@ void dfs_visit(graph *g, unsigned int generation, unsigned int node_id, struct i
   node *n = get_node(g, node_id);
   n->last_visited = generation;
   for(int i = 0; i < n->num_outlets; i++) {
-    connection *conn = n->outlets[i]->connections;
+    connection *conn = n->outlets[i].connections;
     while(conn) {
       node *in = get_node(g, conn->in_node_id);
       if(in->last_visited != generation) {
@@ -383,7 +465,6 @@ void dfs_visit(graph *g, unsigned int generation, unsigned int node_id, struct i
       conn = conn->next;
     }
   }
-  //printf("visited %d\n", node_id);
   //push onto stack
   s->stk[s->top] = node_id;
   s->top++;
@@ -399,7 +480,6 @@ struct int_stack sort_graph(graph *g) {
   for(int i = 0; i < TABLE_SIZE; i++) {
     list_elem *ptr = g->node_table[i];
     while(ptr && ptr->node) {
-      printf("in sort graph\n");
       //if unvisited, visit
       if(ptr->node->last_visited != generation) {
         dfs_visit(g, generation, ptr->node->id, &ordered_nodes);
@@ -411,6 +491,33 @@ struct int_stack sort_graph(graph *g) {
   return ordered_nodes;
 }
 
+void process_graph(graph *g, struct int_stack s) {
+  while(s.top >= 0) {
+    //process node
+    node *n = get_node(g, s.stk[s.top]);
+    n->process(n);
+
+    //add outlet contents to connected inlets
+    for(int i = 0; i < n->num_outlets; i++) {
+      outlet o = n->outlets[i];
+      connection *c = o.connections;
+      while(c) {
+        node *in_node = get_node(g, c->in_node_id);
+        inlet in = in_node->inlets[c->inlet_id];
+        for(int j = 0; j < g->audio_opts.buf_size; j++) {
+          in.buf[j] += o.buf[j];
+        }
+        c = c->next;
+      }
+    }
+    s.top--;
+  }
+  inlet output = g->hw_inlets[1];
+  for(int i = 0; i < g->audio_opts.buf_size; i++) {
+    fwrite(&output.buf[i], 1, sizeof(float), stdout);
+  }
+}
+
 
 //bool connect(int out_node_id, int outlet_id, int in_node_id, int inlet_id)
 //ensure variables actually exist, test for cycles
@@ -419,19 +526,20 @@ struct int_stack sort_graph(graph *g) {
 //
 int main() {
   graph *g = new_graph();
-  node *sin = new_sin_osc();
-  node *sin2 = new_sin_osc();
+  node *sin = new_sin_osc(g);
+  //node *sin2 = new_sin_osc();
+  node *dac = new_dac(g);
+  add_node(g, dac);
   add_node(g, sin);
-  add_node(g, sin2);
-  connect(g, sin->id, 0, sin2->id, 1);
-  connect(g, sin->id, 0, sin2->id, 0);
-  connect(g, sin->id, 0, sin2->id, 1);
-  connect(g, sin->id, 0, sin2->id, 1);
-  connect(g, sin->id, 0, sin2->id, 0);
-  connect(g, sin->id, 0, sin2->id, 0);
-  ////printf("%d\n", sin->id);
-  ////process_graph(g);
-  //list_elem *head = new_list_elem();
+  //add_node(g, sin2);
+  connect(g, sin->id, 0, dac->id, 0);
+  connect(g, sin->id, 0, dac->id, 1);
+  //connect(g, sin->id, 0, sin2->id, 1);
+  //connect(g, sin->id, 0, sin2->id, 0);
+  //connect(g, sin->id, 0, sin2->id, 1);
+  //connect(g, sin->id, 0, sin2->id, 1);
+  //connect(g, sin->id, 0, sin2->id, 0);
+  //connect(g, sin->id, 0, sin2->id, 0);
 
   //head->node = sin;
 
@@ -473,16 +581,16 @@ int main() {
   //visit_whole_table(&nt);
   //
   struct int_stack s = sort_graph(g);
-  while(s.top >= 0) {
-    printf("visiting %d\n", s.stk[s.top]);
-    s.top--;
+  for(int i = 0; i < 1000; i++){
+    process_graph(g, s);
   }
   free_graph(g);
-  free(g);
-  free(sin);
-  free(sin2);
+  //free(sin);
+  //free(sin2);
   //free(sin2);
 }
 
 //deffo want a limiter on dac eventually
 //dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in graph struct
+
+//
