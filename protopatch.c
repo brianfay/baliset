@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <io.h>
 #include <math.h>
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
@@ -275,11 +276,11 @@ graph *new_graph() {
   g->num_hw_inlets = 2;
   g->hw_inlets = malloc(sizeof(inlet) * 2);
   g->hw_outlets = malloc(sizeof(outlet) * 2);
-  g->hw_inlets[0] = new_inlet(64, "left");
-  g->hw_inlets[1] = new_inlet(64, "right");
+  g->hw_inlets[0] = new_inlet(a.buf_size, "left");
+  g->hw_inlets[1] = new_inlet(a.buf_size, "right");
   g->num_hw_outlets = 2;
-  g->hw_outlets[0] = new_outlet(64, "left");
-  g->hw_outlets[1] = new_outlet(64, "right");
+  g->hw_outlets[0] = new_outlet(a.buf_size, "left");
+  g->hw_outlets[1] = new_outlet(a.buf_size, "right");
   return g;
 }
 
@@ -316,17 +317,24 @@ void add_connection(outlet *out, unsigned int in_node_id, unsigned int inlet_id)
 }
 
 typedef struct {
+  float amp;
   float phase;
   float freq;
-  float inv_sr;
+  float phase_incr;
 } sin_data;
 
 void process_sin (struct node *self) {
   float *buf = self->outlets[0].buf;
   sin_data *data = self->data;
   for(int i = 0; i < self->outlets[0].buf_size; i++) {
-    buf[i] = sinf(data->phase);
-    data->phase += data->freq * data->inv_sr * 2.0 * M_PI;
+    buf[i] = data->amp * sinf(data->phase);
+    data->phase += data->freq * data->phase_incr;
+    if(data->phase > M_PI * 2.0) {
+      data->phase -= M_PI * 2.0;
+    }
+    if(data->phase < 0.0) {
+      data->phase += M_PI * 2.0;
+    }
   }
 }
 
@@ -368,9 +376,10 @@ void destroy_sin (struct node *self) {
 
 sin_data *new_sin_data(graph *g){
   sin_data *d = malloc(sizeof(sin_data));
-  d->freq = 540.0;
+  d->amp = 0.3;
+  d->freq = 440.0;
   d->phase = 0.0;
-  d->inv_sr = (1.0 / g->audio_opts.sample_rate);
+  d->phase_incr = (2.0 * M_PI / g->audio_opts.sample_rate);
   return d;
 }
 
@@ -437,7 +446,7 @@ void free_graph(graph *g) {
 //returns id of newly created node
 
 //TODO error handling
-void connect(graph *g, unsigned int out_node_id, unsigned int outlet_id, 
+void pp_connect(graph *g, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id) {
   node *out = get_node(g, out_node_id);
   node *in = get_node(g, in_node_id);
@@ -491,7 +500,23 @@ struct int_stack sort_graph(graph *g) {
   return ordered_nodes;
 }
 
+void zero_all_inlets(graph *g, struct int_stack s) {
+  while(s.top >= 0) {
+    node *n = get_node(g, s.stk[s.top]);
+    for(int i = 0; i < n->num_inlets; i++) {
+      inlet in = n->inlets[i];
+      for(int j = 0; j < in.buf_size; j++) {
+        in.buf[j] = 0.f;
+      }
+    }
+    s.top--;
+  }
+}
+
 void process_graph(graph *g, struct int_stack s) {
+  //first need to zero out all inlets
+  zero_all_inlets(g, s);
+
   while(s.top >= 0) {
     //process node
     node *n = get_node(g, s.stk[s.top]);
@@ -512,12 +537,36 @@ void process_graph(graph *g, struct int_stack s) {
     }
     s.top--;
   }
-  inlet output = g->hw_inlets[1];
-  for(int i = 0; i < g->audio_opts.buf_size; i++) {
-    fwrite(&output.buf[i], 1, sizeof(float), stdout);
-  }
+  //inlet output = g->hw_inlets[1];
+  //for(int i = 0; i < g->audio_opts.buf_size; i++) {
+  //  fwrite(&output.buf[i], 1, sizeof(float), stdout);
+  //}
 }
 
+static int audioCallback (const void *inputBuffer, void *outputBuffer,
+                         unsigned long framesPerBuffer,
+                         const PaStreamCallbackTimeInfo* timeInfo,
+                         PaStreamCallbackFlags statusFlags,
+                         void *userData) {
+
+  graph *g = (graph*) userData;
+
+  struct int_stack s = sort_graph(g);
+
+  process_graph(g, s);
+
+  float *out = (float*)outputBuffer;
+  node *n = get_node(g, 1);
+  float *buf = n->outlets[0].buf;
+
+  for(int i=0; i < framesPerBuffer; i++) {
+    //*out++ = buf[i];
+    //*out++ = buf[i];
+    *out++ = g->hw_inlets[0].buf[i];
+    *out++ = g->hw_inlets[1].buf[i];
+  }
+  return 0;
+}
 
 //bool connect(int out_node_id, int outlet_id, int in_node_id, int inlet_id)
 //ensure variables actually exist, test for cycles
@@ -525,69 +574,31 @@ void process_graph(graph *g, struct int_stack s) {
   //
 //
 int main() {
+  srand(0);
   graph *g = new_graph();
   node *sin = new_sin_osc(g);
-  //node *sin2 = new_sin_osc();
+  node *sin2 = new_sin_osc(g);
+  ((sin_data*) sin2->data)->freq = 110;
   node *dac = new_dac(g);
   add_node(g, dac);
   add_node(g, sin);
+  add_node(g, sin2);
   //add_node(g, sin2);
-  connect(g, sin->id, 0, dac->id, 0);
-  connect(g, sin->id, 0, dac->id, 1);
-  //connect(g, sin->id, 0, sin2->id, 1);
-  //connect(g, sin->id, 0, sin2->id, 0);
-  //connect(g, sin->id, 0, sin2->id, 1);
-  //connect(g, sin->id, 0, sin2->id, 1);
-  //connect(g, sin->id, 0, sin2->id, 0);
-  //connect(g, sin->id, 0, sin2->id, 0);
+  //pp_connect(g, sin->id, 0, dac->id, 0);
+  //pp_connect(g, sin2->id, 0, dac->id, 1);
 
-  //head->node = sin;
+  pa_run(audioCallback, g);
 
-  //list_elem *l2 = new_list_elem();
-  //l2->node = sin2;
-
-
-  //add_elem(&head, l2);
-
-  //printf("not null? %d\n", search_for_elem(head, 0));
-  //printf("not null? %d\n", search_for_elem(head, 1));
-
-  //remove_elem(&head, search_for_elem(head, 1));
-  //printf("null? %d\n", search_for_elem(head, 1));
-
-  //node *sin3 = new_sin_osc();
-  //node *sin4 = new_sin_osc();
-  //node *sin5 = new_sin_osc();
-  //sin->id = 0;
-  //sin2->id = 1;
-  //sin3->id = 2;
-  //sin4->id = 3;
-  //sin5->id = 4;
-
-  //node_table nt = new_node_table();
-  //add_to_table(&nt, sin);
-  //add_to_table(&nt, sin2);
-  //add_to_table(&nt, sin3);
-  //add_to_table(&nt, sin4);
-  //add_to_table(&nt, sin5);
-
-  ////visit_whole_table(&nt);
-  //remove_from_table(&nt, 0);
-  //visit_whole_table(&nt);
-  //remove_from_table(&nt, 3);
-  //remove_from_table(&nt, 2);
-  //remove_from_table(&nt, 1);
-  //remove_from_table(&nt, 4);
-  //visit_whole_table(&nt);
-  //
-  struct int_stack s = sort_graph(g);
-  for(int i = 0; i < 1000; i++){
-    process_graph(g, s);
+  while(1){
+    Pa_Sleep(3000);
+    node *n = new_sin_osc(g);
+    int freq = (1 + (rand() % 9)) * 110.0;
+    ((sin_data*) n->data)->freq = freq;
+    add_node(g, n);
+    pp_connect(g, n->id, 0, dac->id, rand() % 2);
   }
+
   free_graph(g);
-  //free(sin);
-  //free(sin2);
-  //free(sin2);
 }
 
 //deffo want a limiter on dac eventually
