@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <io.h>
 #include <math.h>
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
@@ -35,6 +34,7 @@ typedef struct connection {
 typedef struct {
   float *buf;
   int buf_size;
+  int num_connections;
   char *name;
 } inlet;
 
@@ -250,6 +250,7 @@ inlet new_inlet(int buf_size, char *name) {
   inlet i;
   i.buf = calloc(buf_size, sizeof(float));
   i.buf_size = buf_size;
+  i.num_connections = 0;
   i.name = name;
   return i;
 }
@@ -290,11 +291,12 @@ graph *new_graph() {
 //adc
 
 
-void add_connection(outlet *out, unsigned int in_node_id, unsigned int inlet_id) {
+void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned int inlet_id) {
   //TODO detect cycles
   connection *ptr = out->connections;
   if (!ptr) {
     out->num_connections++;
+    in->num_connections++;
     ptr = malloc(sizeof(connection));
     ptr->next = NULL;
     ptr->in_node_id = in_node_id;
@@ -309,6 +311,7 @@ void add_connection(outlet *out, unsigned int in_node_id, unsigned int inlet_id)
     ptr = ptr->next;
   }
   out->num_connections++;
+  in->num_connections++;
   ptr = malloc(sizeof(connection));
   ptr->next = NULL;
   ptr->in_node_id = in_node_id;
@@ -327,6 +330,10 @@ void process_sin (struct node *self) {
   float *buf = self->outlets[0].buf;
   sin_data *data = self->data;
   for(int i = 0; i < self->outlets[0].buf_size; i++) {
+    inlet freq = self->inlets[0];
+    if(freq.num_connections > 0) {
+      data->freq = freq.buf[i];
+    }
     buf[i] = data->amp * sinf(data->phase);
     data->phase += data->freq * data->phase_incr;
     if(data->phase > M_PI * 2.0) {
@@ -389,13 +396,12 @@ node *new_sin_osc(graph *g) {
   n->data = new_sin_data(g);
   n->process = &process_sin;
   n->destroy = &destroy_sin;
-  n->num_inlets = 2;//TODO create_inlet convenience function
+  n->num_inlets = 1;//TODO create_inlet convenience function
   n->num_outlets = 1;
   n->num_controls = 0;
   n->last_visited = -1;
-  n->inlets = malloc(sizeof(inlet) * 2);
-  n->inlets[0] = new_inlet(64, "phase");
-  n->inlets[1] = new_inlet(64, "freq");
+  n->inlets = malloc(sizeof(inlet) * n->num_inlets);
+  n->inlets[0] = new_inlet(64, "freq");
   n->outlets = malloc(sizeof(outlet));
   n->outlets[0] = new_outlet(64, "out");
   return n;
@@ -452,7 +458,7 @@ void pp_connect(graph *g, unsigned int out_node_id, unsigned int outlet_id,
   node *in = get_node(g, in_node_id);
   if (out && in && inlet_id < in->num_inlets 
       && outlet_id < out->num_outlets) {
-    add_connection(&out->outlets[outlet_id], in_node_id, inlet_id);
+    add_connection(&out->outlets[outlet_id], &in->inlets[inlet_id], in_node_id, inlet_id);
   }
 }
 
@@ -543,63 +549,11 @@ void process_graph(graph *g, struct int_stack s) {
   //}
 }
 
-static int audioCallback (const void *inputBuffer, void *outputBuffer,
-                         unsigned long framesPerBuffer,
-                         const PaStreamCallbackTimeInfo* timeInfo,
-                         PaStreamCallbackFlags statusFlags,
-                         void *userData) {
-
-  graph *g = (graph*) userData;
-
-  struct int_stack s = sort_graph(g);
-
-  process_graph(g, s);
-
-  float *out = (float*)outputBuffer;
-  node *n = get_node(g, 1);
-  float *buf = n->outlets[0].buf;
-
-  for(int i=0; i < framesPerBuffer; i++) {
-    //*out++ = buf[i];
-    //*out++ = buf[i];
-    *out++ = g->hw_inlets[0].buf[i];
-    *out++ = g->hw_inlets[1].buf[i];
-  }
-  return 0;
-}
-
 //bool connect(int out_node_id, int outlet_id, int in_node_id, int inlet_id)
 //ensure variables actually exist, test for cycles
   //happy path - increment num_connections on inlet, update connection
   //
 //
-int main() {
-  srand(0);
-  graph *g = new_graph();
-  node *sin = new_sin_osc(g);
-  node *sin2 = new_sin_osc(g);
-  ((sin_data*) sin2->data)->freq = 110;
-  node *dac = new_dac(g);
-  add_node(g, dac);
-  add_node(g, sin);
-  add_node(g, sin2);
-  //add_node(g, sin2);
-  //pp_connect(g, sin->id, 0, dac->id, 0);
-  //pp_connect(g, sin2->id, 0, dac->id, 1);
-
-  pa_run(audioCallback, g);
-
-  while(1){
-    Pa_Sleep(3000);
-    node *n = new_sin_osc(g);
-    int freq = (1 + (rand() % 9)) * 110.0;
-    ((sin_data*) n->data)->freq = freq;
-    add_node(g, n);
-    pp_connect(g, n->id, 0, dac->id, rand() % 2);
-  }
-
-  free_graph(g);
-}
 
 //deffo want a limiter on dac eventually
 //dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in graph struct
