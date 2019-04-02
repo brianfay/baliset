@@ -14,8 +14,6 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
   process_graph(g, s);
 
   float *out = (float*)outputBuffer;
-  node *n = get_node(g, 1);
-  float *buf = n->outlets[0].buf;
 
   for(int i=0; i < framesPerBuffer; i++) {
     //*out++ = buf[i];
