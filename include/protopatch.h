@@ -5,7 +5,7 @@
 
 typedef struct {
   unsigned int buf_size;
-  unsigned int sample_rate; 
+  unsigned int sample_rate;
   unsigned int hw_in_channels;
   unsigned int hw_out_channels;
 } audio_options;
@@ -59,7 +59,7 @@ typedef struct node_list_elem {
   node *node;
 } node_list_elem;
 
-typedef struct graph {
+typedef struct patch {
   //hashtable of nodes
   node_list_elem **node_table;
   //thing representing connections
@@ -68,17 +68,17 @@ typedef struct graph {
   audio_options audio_opts;
   //it's kind of confusing, but hw_inlets are the audio outputs
   //hw_outlets are the audio inputs
-  inlet *hw_inlets; //re-initing graph with different audio-options would be super annoying... but would kind of justify making inlets/outlets external to nodes
+  inlet *hw_inlets; //re-initing patch with different audio-options would be super annoying... but would kind of justify making inlets/outlets external to nodes
   int num_hw_inlets;
   outlet *hw_outlets;
   int num_hw_outlets;
-} graph;
+} patch;
 
 inlet new_inlet(int buf_size, char *name);
 
 outlet new_outlet(int buf_size, char *name);
 
-graph *new_graph();
+patch *new_patch();
 
 void destroy_inlets(node *n);
 
@@ -86,14 +86,14 @@ void destroy_outlets(node *n);
 
 void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned int inlet_id);
 
-void add_node(graph *g, node *n);
+void add_node(patch *p, node *n);
 
-node *get_node(graph *g, unsigned int id);
+node *get_node(patch *p, unsigned int id);
 
-void free_graph(graph *g);
+void free_patch(patch *p);
 
 //TODO error handling
-void pp_connect(graph *g, unsigned int out_node_id, unsigned int outlet_id,
+void pp_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
 
 struct int_stack {
@@ -101,19 +101,19 @@ struct int_stack {
   int top;
 };
 
-void dfs_visit(graph *g, unsigned int generation, unsigned int node_id, struct int_stack *s);
+void dfs_visit(patch *p, unsigned int generation, unsigned int node_id, struct int_stack *s);
 
-struct int_stack sort_graph(graph *g);
+struct int_stack sort_patch(patch *p);
 
-void process_graph(graph *g, struct int_stack s);
+void process_patch(patch *p, struct int_stack s);
 
 //deffo want a limiter on dac eventually
-//dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in graph struct
+//dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in patch struct
 //
 
 //TODO: remove these; want a standardized way to add nodes and set controls by name
-node *new_sin_osc(graph *g);
-node *new_dac(graph *g);
+node *new_sin_osc(patch *p);
+node *new_dac(patch *p);
 typedef struct {
   float amp;
   float phase;

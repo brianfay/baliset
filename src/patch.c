@@ -7,11 +7,11 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
                          PaStreamCallbackFlags statusFlags,
                          void *userData) {
 
-  graph *g = (graph*) userData;
+  patch *g = (patch*) userData;
 
-  struct int_stack s = sort_graph(g);
+  struct int_stack s = sort_patch(g);
 
-  process_graph(g, s);
+  process_patch(g, s);
 
   float *out = (float*)outputBuffer;
 
@@ -26,7 +26,7 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
 
 int main() {
   srand(0);
-  graph *g = new_graph();
+  patch *g = new_patch();
   node *sin = new_sin_osc(g);
   node *lfo = new_sin_osc(g);
   node *lfo2 = new_sin_osc(g);
@@ -58,5 +58,5 @@ int main() {
     //pp_connect(g, n->id, 0, dac->id, rand() % 2);
   }
 
-  free_graph(g);
+  free_patch(g);
 }

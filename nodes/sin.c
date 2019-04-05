@@ -34,18 +34,18 @@ void destroy_sin (struct node *self) {
   free((sin_data*)self->data);
 }
 
-sin_data *new_sin_data(graph *g){
+sin_data *new_sin_data(patch *p){
   sin_data *d = malloc(sizeof(sin_data));
   d->amp = 0.3;
   d->freq = 440.0;
   d->phase = 0.0;
-  d->phase_incr = (2.0 * M_PI / g->audio_opts.sample_rate);
+  d->phase_incr = (2.0 * M_PI / p->audio_opts.sample_rate);
   return d;
 }
 
-node *new_sin_osc(graph *g) {
+node *new_sin_osc(patch *p) {
   node *n = malloc(sizeof(node));
-  n->data = new_sin_data(g);
+  n->data = new_sin_data(p);
   n->process = &process_sin;
   n->destroy = &destroy_sin;
   n->num_inlets = 1;//TODO create_inlet convenience function
