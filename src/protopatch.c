@@ -76,11 +76,11 @@ void add_to_table(node_list_elem **nt, node *n) {
   nt[idx] = elem;
 }
 
-void free_node_table(node_list_elem **node_table) {
+void free_node_table(node_table table) {
   for(int i = 0; i < TABLE_SIZE; i++) {
-    free_node_list(node_table[i]);
+    free_node_list(table[i]);
   }
-  free(node_table);
+  free(table);
 }
 
 inlet new_inlet(int buf_size, char *name) {
@@ -103,11 +103,11 @@ outlet new_outlet(int buf_size, char *name) {
 }
 
 patch *new_patch() {
-  audio_options a = {.buf_size = 64, .sample_rate = 44100, 
+  audio_options a = {.buf_size = 64, .sample_rate = 44100,
                      .hw_in_channels = 2, .hw_out_channels = 2};
   patch *p = malloc(sizeof(patch));
-  p->node_table = malloc(sizeof(node_list_elem *) * TABLE_SIZE);
-  for(int i = 0; i < TABLE_SIZE; i++) p->node_table[i] = NULL;
+  p->table = malloc(sizeof(node_list_elem *) * TABLE_SIZE);
+  for(int i = 0; i < TABLE_SIZE; i++) p->table[i] = NULL;
   p->num_nodes = 0;
   p->next_id = 0;
   p->audio_opts = a;
@@ -153,18 +153,18 @@ void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned in
 void add_node(patch *p, node *n) {
   n->id = p->next_id++;
   p->num_nodes++;
-  add_to_table(p->node_table, n);
+  add_to_table(p->table, n);
 }
 
 node *get_node(patch *p, unsigned int id) {
-  node_list_elem *e = search_for_elem(p->node_table[id % TABLE_SIZE], id);
+  node_list_elem *e = search_for_elem(p->table[id % TABLE_SIZE], id);
   if (e) return e->node;
   return NULL;
 }
 
 void free_patch(patch *p) {
   //free each node
-  free_node_table(p->node_table);
+  free_node_table(p->table);
   for(int i = 0; i < p->num_hw_inlets; i++) {
     free(p->hw_inlets[i].buf);
   }
@@ -213,7 +213,7 @@ struct int_stack sort_patch(patch *p) {
   //int *visited = malloc(sizeof(int) * g->num_nodes);
   //for(int i = 0; i < g->num_nodes; i++) visited[i] = -1;
   for(int i = 0; i < TABLE_SIZE; i++) {
-    node_list_elem *ptr = p->node_table[i];
+    node_list_elem *ptr = p->table[i];
     while(ptr && ptr->node) {
       //if unvisited, visit
       if(ptr->node->last_visited != generation) {

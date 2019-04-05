@@ -59,9 +59,11 @@ typedef struct node_list_elem {
   node *node;
 } node_list_elem;
 
+typedef node_list_elem** node_table;
+
 typedef struct patch {
   //hashtable of nodes
-  node_list_elem **node_table;
+  node_table table;
   //thing representing connections
   int next_id; //should monotonically increase
   int num_nodes; //dunno if I need this
