@@ -156,7 +156,7 @@ void add_node(patch *p, node *n) {
   add_to_table(p->table, n);
 }
 
-node *get_node(patch *p, unsigned int id) {
+node *get_node(const patch *p, unsigned int id) {
   node_list_elem *e = search_for_elem(p->table[id % TABLE_SIZE], id);
   if (e) return e->node;
   return NULL;
@@ -181,13 +181,13 @@ void pp_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id) {
   node *out = get_node(p, out_node_id);
   node *in = get_node(p, in_node_id);
-  if (out && in && inlet_id < in->num_inlets 
+  if (out && in && inlet_id < in->num_inlets
       && outlet_id < out->num_outlets) {
     add_connection(&out->outlets[outlet_id], &in->inlets[inlet_id], in_node_id, inlet_id);
   }
 }
 
-void dfs_visit(patch *p, unsigned int generation, unsigned int node_id, struct int_stack *s) {
+void dfs_visit(const patch *p, unsigned int generation, unsigned int node_id, struct int_stack *s) {
   node *n = get_node(p, node_id);
   n->last_visited = generation;
   for(int i = 0; i < n->num_outlets; i++) {
@@ -205,17 +205,14 @@ void dfs_visit(patch *p, unsigned int generation, unsigned int node_id, struct i
   s->top++;
 }
 
-struct int_stack sort_patch(patch *p) {
+void  sort_patch(patch *p) {
   static int generation = -1;
   generation++;
-  //should return a linked-list of node ids in order that they should be processed
+  //TODO maybe just use the stack on the patch, don't allocate a new one
   struct int_stack ordered_nodes = {.top = 0, .stk= {0}};
-  //int *visited = malloc(sizeof(int) * g->num_nodes);
-  //for(int i = 0; i < g->num_nodes; i++) visited[i] = -1;
   for(int i = 0; i < TABLE_SIZE; i++) {
     node_list_elem *ptr = p->table[i];
     while(ptr && ptr->node) {
-      //if unvisited, visit
       if(ptr->node->last_visited != generation) {
         dfs_visit(p, generation, ptr->node->id, &ordered_nodes);
       }
@@ -223,10 +220,11 @@ struct int_stack sort_patch(patch *p) {
     }
   }
   ordered_nodes.top--;
-  return ordered_nodes;
+  p->order = ordered_nodes;
 }
 
-void zero_all_inlets(patch *p, struct int_stack s) {
+void zero_all_inlets(const patch *p, struct int_stack s) {
+  //TODO should zero even if not part of the int_stack
   while(s.top >= 0) {
     node *n = get_node(p, s.stk[s.top]);
     for(int i = 0; i < n->num_inlets; i++) {
@@ -239,12 +237,11 @@ void zero_all_inlets(patch *p, struct int_stack s) {
   }
 }
 
-
-void process_patch(patch *p, struct int_stack s) {
-  zero_all_inlets(p, s);
-
-  while(s.top >= 0) {
-    node *n = get_node(p, s.stk[s.top]);
+void process_patch(patch *p) {
+  zero_all_inlets(p, p->order);
+  int top = p->order.top;
+  while(top >= 0) {
+    node *n = get_node(p, p->order.stk[top]);
     n->process(n);
 
     //add outlet contents to connected inlets
@@ -260,7 +257,7 @@ void process_patch(patch *p, struct int_stack s) {
         c = c->next;
       }
     }
-    s.top--;
+    top--;
   }
   //inlet output = g->hw_inlets[1];
   //for(int i = 0; i < g->audio_opts.buf_size; i++) {

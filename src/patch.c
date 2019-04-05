@@ -7,47 +7,47 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
                          PaStreamCallbackFlags statusFlags,
                          void *userData) {
 
-  patch *g = (patch*) userData;
+  patch *p = (patch*) userData;
 
-  struct int_stack s = sort_patch(g);
-
-  process_patch(g, s);
+  process_patch(p);
 
   float *out = (float*)outputBuffer;
 
   for(int i=0; i < framesPerBuffer; i++) {
     //*out++ = buf[i];
     //*out++ = buf[i];
-    *out++ = g->hw_inlets[0].buf[i];
-    *out++ = g->hw_inlets[1].buf[i];
+    *out++ = p->hw_inlets[0].buf[i];
+    *out++ = p->hw_inlets[1].buf[i];
   }
   return 0;
 }
 
 int main() {
   srand(0);
-  patch *g = new_patch();
-  node *sin = new_sin_osc(g);
-  node *lfo = new_sin_osc(g);
-  node *lfo2 = new_sin_osc(g);
+  patch *p = new_patch();
+  node *sin = new_sin_osc(p);
+  node *lfo = new_sin_osc(p);
+  node *lfo2 = new_sin_osc(p);
   sin_data *lfo_data = lfo->data;
   sin_data *lfo2_data = lfo2->data;
   lfo_data->freq = 0.5;
   lfo_data->amp = 550.0;
   lfo2_data->freq = 0.03;
   lfo2_data->amp = 30.0;
-  node *dac = new_dac(g);
-  add_node(g, dac);
-  add_node(g, sin);
-  add_node(g, lfo);
-  add_node(g, lfo2);
+  node *dac = new_dac(p);
+  add_node(p, dac);
+  add_node(p, sin);
+  add_node(p, lfo);
+  add_node(p, lfo2);
   //add_node(g, sin2);
-  pp_connect(g, lfo->id, 0, sin->id, 0);
-  pp_connect(g, lfo2->id, 0, lfo->id, 0);
-  pp_connect(g, sin->id, 0, dac->id, 0);
-  pp_connect(g, sin->id, 0, dac->id, 1);
+  pp_connect(p, lfo->id, 0, sin->id, 0);
+  pp_connect(p, lfo2->id, 0, lfo->id, 0);
+  pp_connect(p, sin->id, 0, dac->id, 0);
+  pp_connect(p, sin->id, 0, dac->id, 1);
 
-  pa_run(audioCallback, g);
+  sort_patch(p);
+
+  pa_run(audioCallback, p);
 
   while(1){
     Pa_Sleep(3000);
@@ -58,5 +58,5 @@ int main() {
     //pp_connect(g, n->id, 0, dac->id, rand() % 2);
   }
 
-  free_patch(g);
+  free_patch(p);
 }

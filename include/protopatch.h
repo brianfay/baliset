@@ -61,9 +61,15 @@ typedef struct node_list_elem {
 
 typedef node_list_elem** node_table;
 
+struct int_stack {
+  int stk[MAX_NODES];
+  int top;
+};
+
 typedef struct patch {
   //hashtable of nodes
   node_table table;
+  struct int_stack order;
   //thing representing connections
   int next_id; //should monotonically increase
   int num_nodes; //dunno if I need this
@@ -86,11 +92,9 @@ void destroy_inlets(node *n);
 
 void destroy_outlets(node *n);
 
-void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned int inlet_id);
-
 void add_node(patch *p, node *n);
 
-node *get_node(patch *p, unsigned int id);
+node *get_node(const patch *p, unsigned int id);
 
 void free_patch(patch *p);
 
@@ -98,16 +102,9 @@ void free_patch(patch *p);
 void pp_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
 
-struct int_stack {
-  int stk[MAX_NODES];
-  int top;
-};
+void sort_patch(patch *p);
 
-void dfs_visit(patch *p, unsigned int generation, unsigned int node_id, struct int_stack *s);
-
-struct int_stack sort_patch(patch *p);
-
-void process_patch(patch *p, struct int_stack s);
+void process_patch(patch *p);
 
 //deffo want a limiter on dac eventually
 //dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in patch struct
