@@ -221,23 +221,21 @@ void sort_patch(patch *p) {
       ptr = ptr->next;
     }
   }
+  printf("ordered nodes.top: %d\n", ordered_nodes.top);
   ordered_nodes.top--;
   p->order = ordered_nodes;
 }
 
 void zero_all_inlets(const patch *p, struct int_stack s) {
-  for (int i = 0; i < TABLE_SIZE; i++) {
-    node_list_elem *e = p->table[i];
-    while(e && e->node) {
-      node *n = e->node;
-      for(int j = 0; j < n->num_inlets; j++) {
-        inlet in = n->inlets[j];
-        for(int k = 0; k < in.buf_size; k++) {
-          in.buf[k] = 0.0;
-        }
+  while(s.top >= 0) {
+    node *n = get_node(p, s.stk[s.top]);
+    for(int i = 0; i < n->num_inlets; i++) {
+      inlet in = n->inlets[i];
+      for(int j = 0; j < in.buf_size; j++) {
+        in.buf[j] = 0.f;
       }
-      e = e->next;
     }
+    s.top--;
   }
 }
 
@@ -278,3 +276,5 @@ void set_control(node *n, char *ctl_name, float val){
     }
   }
 }
+
+void no_op(struct node *self) {return;}

@@ -116,8 +116,11 @@ void set_control(node *n, char *ctl_name, float val);
 //dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in patch struct
 //
 
+void no_op(struct node *self);
+
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
 node *new_sin_osc(const patch *p);
+node *new_adc(const patch *p);
 node *new_dac(const patch *p);
 
 #endif

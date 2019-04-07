@@ -21,8 +21,6 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
   float *out = (float*)outputBuffer;
 
   for(int i=0; i < framesPerBuffer; i++) {
-    //*out++ = buf[i];
-    //*out++ = buf[i];
     *out++ = p->hw_inlets[0].buf[i];
     *out++ = p->hw_inlets[1].buf[i];
   }
@@ -31,6 +29,7 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
 
 int main() {
   srand(0);
+  /* FM-y example
   patch *p = new_patch();
   node *sin = new_sin_osc(p);
   node *lfo = new_sin_osc(p);
@@ -50,19 +49,21 @@ int main() {
   pp_connect(p, sin->id, 0, dac->id, 1);
 
   sort_patch(p);
+  pa_run(audioCallback, p);
+  */
 
+  patch *p = new_patch();
+  node *adc = new_adc(p);
+  node *dac = new_dac(p);
+  add_node(p, adc);
+  add_node(p, dac);
+  pp_connect(p, adc->id, 0, dac->id, 0);
+  pp_connect(p, adc->id, 1, dac->id, 1);
+  sort_patch(p);
   pa_run(audioCallback, p);
 
   while(1){
     Pa_Sleep(3000);
-    printf("%.6f\n", (rand() % 100 / 100.0));
-    /* set_control(lfo, "freq", (rand() % 100 / 100.0)); */
-    set_control(lfo2, "freq", (rand() % 100 / 100.0));
-    //node *n = new_sin_osc(g);
-    //int freq = (1 + (rand() % 9)) * 110.0;
-    //((sin_data*) n->data)->freq = freq;
-    //add_node(g, n);
-    //pp_connect(g, n->id, 0, dac->id, rand() % 2);
   }
 
   free_patch(p);
