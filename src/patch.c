@@ -7,7 +7,14 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
                          PaStreamCallbackFlags statusFlags,
                          void *userData) {
 
+  float *in = (float*)inputBuffer;
+
   patch *p = (patch*) userData;
+
+  for(int i=0; i < framesPerBuffer; i++) {
+    p->hw_outlets[0].buf[i] = *in++;
+    p->hw_outlets[1].buf[i] = *in++;
+  }
 
   process_patch(p);
 
@@ -28,12 +35,9 @@ int main() {
   node *sin = new_sin_osc(p);
   node *lfo = new_sin_osc(p);
   node *lfo2 = new_sin_osc(p);
-  sin_data *lfo_data = lfo->data;
-  sin_data *lfo2_data = lfo2->data;
-  lfo_data->freq = 0.5;
-  lfo_data->amp = 550.0;
-  lfo2_data->freq = 0.03;
-  lfo2_data->amp = 30.0;
+  set_control(lfo, "amp", 550.0);
+  set_control(lfo2, "freq", 0.03);
+  set_control(lfo2, "amp", 30.0);
   node *dac = new_dac(p);
   add_node(p, dac);
   add_node(p, sin);
@@ -51,6 +55,9 @@ int main() {
 
   while(1){
     Pa_Sleep(3000);
+    printf("%.6f\n", (rand() % 100 / 100.0));
+    /* set_control(lfo, "freq", (rand() % 100 / 100.0)); */
+    set_control(lfo2, "freq", (rand() % 100 / 100.0));
     //node *n = new_sin_osc(g);
     //int freq = (1 + (rand() % 9)) * 110.0;
     //((sin_data*) n->data)->freq = freq;

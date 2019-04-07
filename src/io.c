@@ -15,7 +15,7 @@ void pa_run(PaStreamCallback *cb, void *data)
 
   /* Open an audio I/O stream. */
   err = Pa_OpenDefaultStream(&stream,
-                             0,
+                             2,
                              2,
                              paFloat32,
                              SAMPLE_RATE,

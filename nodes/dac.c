@@ -4,7 +4,7 @@ void no_op (struct node *self) {
   return;
 }
 
-node *new_dac(patch *p) {
+node *new_dac(const patch *p) {
   node *n = malloc(sizeof(node));
   n->process = &no_op;
   n->destroy = &no_op;

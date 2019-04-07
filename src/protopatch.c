@@ -1,4 +1,5 @@
 #include "protopatch.h"
+#include "string.h"
 
 void free_connections(outlet out) {
   connection *ptr = out.connections;
@@ -48,7 +49,7 @@ void free_node_list(node_list_elem *ptr) {
   while (ptr) {
     tmp = ptr;
     ptr = ptr->next;
-    if(tmp->node) { 
+    if(tmp->node) {
       tmp->node->destroy(tmp->node);
       free(tmp->node);
     }
@@ -83,11 +84,12 @@ void free_node_table(node_table table) {
   free(table);
 }
 
-inlet new_inlet(int buf_size, char *name) {
+inlet new_inlet(int buf_size, char *name, float default_val) {
   inlet i;
   i.buf = calloc(buf_size, sizeof(float));
   i.buf_size = buf_size;
   i.num_connections = 0;
+  i.val = default_val;
   i.name = name;
   return i;
 }
@@ -114,8 +116,8 @@ patch *new_patch() {
   p->num_hw_inlets = 2;
   p->hw_inlets = malloc(sizeof(inlet) * 2);
   p->hw_outlets = malloc(sizeof(outlet) * 2);
-  p->hw_inlets[0] = new_inlet(a.buf_size, "left");
-  p->hw_inlets[1] = new_inlet(a.buf_size, "right");
+  p->hw_inlets[0] = new_inlet(a.buf_size, "left", 0.0);
+  p->hw_inlets[1] = new_inlet(a.buf_size, "right", 0.0);
   p->num_hw_outlets = 2;
   p->hw_outlets[0] = new_outlet(a.buf_size, "left");
   p->hw_outlets[1] = new_outlet(a.buf_size, "right");
@@ -147,7 +149,7 @@ void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned in
   ptr->next = NULL;
   ptr->in_node_id = in_node_id;
   ptr->inlet_id = inlet_id;
-  prev->next = ptr; 
+  prev->next = ptr;
 }
 
 void add_node(patch *p, node *n) {
@@ -205,7 +207,7 @@ void dfs_visit(const patch *p, unsigned int generation, unsigned int node_id, st
   s->top++;
 }
 
-void  sort_patch(patch *p) {
+void sort_patch(patch *p) {
   static int generation = -1;
   generation++;
   //TODO maybe just use the stack on the patch, don't allocate a new one
@@ -224,16 +226,18 @@ void  sort_patch(patch *p) {
 }
 
 void zero_all_inlets(const patch *p, struct int_stack s) {
-  //TODO should zero even if not part of the int_stack
-  while(s.top >= 0) {
-    node *n = get_node(p, s.stk[s.top]);
-    for(int i = 0; i < n->num_inlets; i++) {
-      inlet in = n->inlets[i];
-      for(int j = 0; j < in.buf_size; j++) {
-        in.buf[j] = 0.f;
+  for (int i = 0; i < TABLE_SIZE; i++) {
+    node_list_elem *e = p->table[i];
+    while(e && e->node) {
+      node *n = e->node;
+      for(int j = 0; j < n->num_inlets; j++) {
+        inlet in = n->inlets[j];
+        for(int k = 0; k < in.buf_size; k++) {
+          in.buf[k] = 0.0;
+        }
       }
+      e = e->next;
     }
-    s.top--;
   }
 }
 
@@ -263,4 +267,14 @@ void process_patch(patch *p) {
   //for(int i = 0; i < g->audio_opts.buf_size; i++) {
   //  fwrite(&output.buf[i], 1, sizeof(float), stdout);
   //}
+}
+
+void set_control(node *n, char *ctl_name, float val){
+  for (int i = 0; i < n->num_inlets; i++){
+    inlet *in = &n->inlets[i];
+    if(strcmp(in->name, ctl_name) == 0) {
+      in->val = val;
+      return;
+    }
+  }
 }
