@@ -1,3 +1,6 @@
+#ifndef PROTOPATCH_H
+#define PROTOPATCH_H
+
 #include <stdlib.h>
 #include <stdio.h>
 #define TABLE_SIZE 64
@@ -18,6 +21,7 @@ typedef struct connection {
 
 typedef struct {
   float *buf;
+  float val; //if there is nothing connected, this value will be used
   int buf_size;
   int num_connections;
   char *name;
@@ -82,7 +86,7 @@ typedef struct patch {
   int num_hw_outlets;
 } patch;
 
-inlet new_inlet(int buf_size, char *name);
+inlet new_inlet(int buf_size, char *name, float default_val);
 
 outlet new_outlet(int buf_size, char *name);
 
@@ -106,16 +110,14 @@ void sort_patch(patch *p);
 
 void process_patch(patch *p);
 
+void set_control(node *n, char *ctl_name, float val);
+
 //deffo want a limiter on dac eventually
 //dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in patch struct
 //
 
-//TODO: remove these; want a standardized way to add nodes and set controls by name
-node *new_sin_osc(patch *p);
-node *new_dac(patch *p);
-typedef struct {
-  float amp;
-  float phase;
-  float freq;
-  float phase_incr;
-} sin_data;
+//TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
+node *new_sin_osc(const patch *p);
+node *new_dac(const patch *p);
+
+#endif
