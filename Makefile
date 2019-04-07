@@ -6,10 +6,13 @@ LDFLAGS = -lm -lportaudio
 CFLAGS = -Wall -Iinclude -g
 
 patch: src/patch.c io.o protopatch.o
-	cc -o target/patch src/patch.c target/sin.o target/adc.o target/dac.o target/io.o target/protopatch.o $(CFLAGS) $(LDFLAGS)
+	cc -o target/patch src/patch.c target/sin.o target/delay.o target/adc.o target/dac.o target/io.o target/protopatch.o $(CFLAGS) $(LDFLAGS)
 
-io.o: src/io.c protopatch.o sin.o dac.o adc.o
+io.o: src/io.c protopatch.o delay.o sin.o dac.o adc.o
 	cc -c src/io.c -o target/io.o $(CFLAGS) $(LDFLAGS)
+
+delay.o: nodes/delay.c protopatch.o
+	cc -c nodes/delay.c -o target/delay.o $(CFLAGS) $(LDFLAGS)
 
 adc.o: nodes/adc.c protopatch.o
 	cc -c nodes/adc.c -o target/adc.o $(CFLAGS) $(LDFLAGS)

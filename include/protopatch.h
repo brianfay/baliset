@@ -122,5 +122,6 @@ void no_op(struct node *self);
 node *new_sin_osc(const patch *p);
 node *new_adc(const patch *p);
 node *new_dac(const patch *p);
+node *new_delay(const patch *p);
 
 #endif

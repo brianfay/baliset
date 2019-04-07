@@ -54,11 +54,21 @@ int main() {
 
   patch *p = new_patch();
   node *adc = new_adc(p);
+  node *delay_l = new_delay(p);
+  node *delay_r = new_delay(p);
   node *dac = new_dac(p);
   add_node(p, adc);
+  add_node(p, delay_l);
+  add_node(p, delay_r);
   add_node(p, dac);
-  pp_connect(p, adc->id, 0, dac->id, 0);
-  pp_connect(p, adc->id, 1, dac->id, 1);
+
+  set_control(delay_l, "delay_time", 0.62);
+  set_control(delay_r, "delay_time", 1.44);
+
+  pp_connect(p, adc->id, 0, delay_l->id, 0);
+  pp_connect(p, adc->id, 1, delay_r->id, 0);
+  pp_connect(p, delay_l->id, 0, dac->id, 0);
+  pp_connect(p, delay_r->id, 0, dac->id, 1);
   sort_patch(p);
   pa_run(audioCallback, p);
 

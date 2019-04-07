@@ -221,7 +221,6 @@ void sort_patch(patch *p) {
       ptr = ptr->next;
     }
   }
-  printf("ordered nodes.top: %d\n", ordered_nodes.top);
   ordered_nodes.top--;
   p->order = ordered_nodes;
 }

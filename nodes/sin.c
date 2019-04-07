@@ -7,14 +7,14 @@ typedef struct {
 } sin_data;
 
 void process_sin(struct node *self) {
-  float *buf = self->outlets[0].buf;
+  float *out_buf = self->outlets[0].buf;
   sin_data *data = self->data;
   inlet i_freq = self->inlets[0];
   inlet i_amp = self->inlets[1];
   for(int i = 0; i < self->outlets[0].buf_size; i++) {
     float freq = (i_freq.num_connections > 0) ? i_freq.buf[i] : i_freq.val;
     float amp = (i_amp.num_connections > 0) ? i_amp.buf[i] : i_amp.val;
-    buf[i] = amp * sinf(data->phase);
+    out_buf[i] = amp * sinf(data->phase);
     data->phase += freq * data->phase_incr;
     if(data->phase > M_PI * 2.0) {
       data->phase -= M_PI * 2.0;
@@ -41,16 +41,16 @@ sin_data *new_sin_data(const patch *p){
 node *new_sin_osc(const patch *p) {
   node *n = malloc(sizeof(node));
   n->data = new_sin_data(p);
+  n->last_visited = -1;
   n->process = &process_sin;
   n->destroy = &destroy_sin;
   n->num_inlets = 2;//TODO create_inlet convenience function
   n->num_outlets = 1;
   n->num_controls = 0;
-  n->last_visited = -1;
   n->inlets = malloc(sizeof(inlet) * n->num_inlets);
-  n->inlets[0] = new_inlet(64, "freq", 440.0);
-  n->inlets[1] = new_inlet(64, "amp", 0.3);
+  n->inlets[0] = new_inlet(p->audio_opts.buf_size, "freq", 440.0);
+  n->inlets[1] = new_inlet(p->audio_opts.buf_size, "amp", 0.3);
   n->outlets = malloc(sizeof(outlet));
-  n->outlets[0] = new_outlet(64, "out");
+  n->outlets[0] = new_outlet(p->audio_opts.buf_size, "out");
   return n;
 }
