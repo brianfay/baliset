@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef PROTOPATCH_H
 #define PROTOPATCH_H
 
@@ -124,4 +128,8 @@ node *new_adc(const patch *p);
 node *new_dac(const patch *p);
 node *new_delay(const patch *p);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
