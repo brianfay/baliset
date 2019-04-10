@@ -1,34 +1,38 @@
-#src = $(wildcard *.c)
-#modules = $(wildcard modules/*.c)
-#obj = $(wildcard target/*.o)
+BUILDDIR = build
+CFLAGS = -Wall -Iinclude -lm
 
-LDFLAGS = -lm -lportaudio
-CFLAGS = -Wall -Iinclude -g
+CC=cc
+CXX=clang++
 
-patch: src/patch.c io.o protopatch.o
-	cc -o target/patch src/patch.c target/sin.o target/delay.o target/adc.o target/dac.o target/io.o target/protopatch.o $(CFLAGS) $(LDFLAGS)
+PROTOPATCH_SRC = $(wildcard src/*.c)
+PROTOPATCH_TARGETS = $(PROTOPATCH_SRC:src/%.c=$(BUILDDIR)/%.o)
+NODE_SRCDIR = nodes
+NODE_SRC = $(wildcard $(NODE_SRCDIR)/*.c)
+NODE_TARGETS = $(NODE_SRC:nodes/%.c=$(BUILDDIR)/%.o)
 
-io.o: src/io.c protopatch.o delay.o sin.o dac.o adc.o
-	cc -c src/io.c -o target/io.o $(CFLAGS) $(LDFLAGS)
+ifeq ($(PROTOPATCH_ENV),bela)
+	CFLAGS += -DBELA -I/root/Bela/include -L/root/Bela/lib -lbela -O3 -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ftree-vectorize -ffast-math -DNDEBUG
+else
+	CFLAGS += -O3 -g -lportaudio
+endif
 
-delay.o: nodes/delay.c protopatch.o
-	cc -c nodes/delay.c -o target/delay.o $(CFLAGS) $(LDFLAGS)
+ifeq ($(PROTOPATCH_ENV),bela)
+build/protopatch: $(wildcard examples/bela/*.cpp) $(PROTOPATCH_TARGETS) $(NODE_TARGETS)
+#I'm not sure if compiling the C files with a c compiiler and then the main program with a C++ compiler is a good idea
+#but I guess I'll find out
+	$(CXX) -o $@ $^ $(CFLAGS)
+else
+build/protopatch: $(wildcard examples/desktop/*.c) $(PROTOPATCH_TARGETS) $(NODE_TARGETS)
+	$(CC) -o $@ $^ $(CFLAGS)
+endif
 
-adc.o: nodes/adc.c protopatch.o
-	cc -c nodes/adc.c -o target/adc.o $(CFLAGS) $(LDFLAGS)
+$(PROTOPATCH_TARGETS): $(PROTOPATCH_SRC)
+	$(CC) -c $< -o $@ $(CFLAGS)
 
-dac.o: nodes/dac.c protopatch.o
-	cc -c nodes/dac.c -o target/dac.o $(CFLAGS) $(LDFLAGS)
+$(NODE_TARGETS): $(BUILDDIR)/%.o : $(NODE_SRCDIR)/%.c
+	$(CC) -c $< -o $@ $(CFLAGS)
 
-sin.o: nodes/sin.c protopatch.o
-	cc -c nodes/sin.c -o target/sin.o $(CFLAGS) $(LDFLAGS)
-
-protopatch.o: src/protopatch.c
-	cc -c src/protopatch.c -o target/protopatch.o $(CFLAGS) $(LDFLAGS)
-#
-#io.o: io.c
-#	cc -c target/$@ protopatch.c $(CFLAGS) $(LDFLAGS)
 .PHONY: clean
 
 clean:
-	rm target/*
+	rm $(BUILDDIR)/*
