@@ -1,6 +1,6 @@
 A realtime audio patching program, written in C. Or at least... a prototype for one
 
-Runs on Desktop via Portaudio, or on [Bela](bela.io)
+Supported audio backends are desktop via Portaudio, and [Bela](bela.io)
 
 You will need a build directory:
 ```

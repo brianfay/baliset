@@ -60,7 +60,6 @@ delay_data *new_delay_data(const patch *p){
 }
 
 node *new_delay(const patch *p) {
-  printf("in new_delay\n");
   node *n = malloc(sizeof(node));
   n->last_visited = -1;
   n->data = new_delay_data(p);

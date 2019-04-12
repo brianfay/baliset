@@ -15,6 +15,10 @@ typedef struct {
   unsigned int sample_rate;
   unsigned int hw_in_channels;
   unsigned int hw_out_channels;
+#ifdef BELA
+  unsigned int digital_channels;
+  unsigned int digital_frames;
+#endif
 } audio_options;
 
 typedef struct connection {
@@ -85,22 +89,26 @@ typedef struct patch {
   //it's kind of confusing, but hw_inlets are the audio outputs
   //hw_outlets are the audio inputs
   inlet *hw_inlets; //re-initing patch with different audio-options would be super annoying... but would kind of justify making inlets/outlets external to nodes
-  int num_hw_inlets;
+#ifdef BELA
+  outlet *digital_outlets;
+  //TODO might want digital inlets, and analog inlets/outlets
+#endif
   outlet *hw_outlets;
-  int num_hw_outlets;
 } patch;
 
 inlet new_inlet(int buf_size, char *name, float default_val);
 
 outlet new_outlet(int buf_size, char *name);
 
-patch *new_patch();
+patch *new_patch(audio_options audio_opts);
 
 void destroy_inlets(node *n);
 
 void destroy_outlets(node *n);
 
 void add_node(patch *p, node *n);
+
+void remove_node(patch *p, unsigned int id);
 
 node *get_node(const patch *p, unsigned int id);
 
@@ -109,6 +117,9 @@ void free_patch(patch *p);
 //TODO error handling
 void pp_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
+
+void pp_disconnect(patch *p, unsigned int out_node_id,
+                   unsigned int outlet_id, unsigned int in_node_id, unsigned int inlet_id);
 
 void sort_patch(patch *p);
 
@@ -127,6 +138,9 @@ node *new_sin_osc(const patch *p);
 node *new_adc(const patch *p);
 node *new_dac(const patch *p);
 node *new_delay(const patch *p);
+#ifdef BELA
+node *new_buttons(const patch *p);
+#endif
 
 #endif
 

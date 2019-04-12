@@ -1,5 +1,6 @@
 #include "protopatch.h"
-#include "string.h"
+#include <stdio.h>
+#include <string.h>
 
 void free_connections(outlet out) {
   connection *ptr = out.connections;
@@ -104,23 +105,41 @@ outlet new_outlet(int buf_size, char *name) {
   return o;
 }
 
-patch *new_patch() {
-  audio_options a = {.buf_size = 64, .sample_rate = 44100,
-                     .hw_in_channels = 2, .hw_out_channels = 2};
+patch *new_patch(audio_options audio_opts) {
   patch *p = malloc(sizeof(patch));
   p->table = malloc(sizeof(node_list_elem *) * TABLE_SIZE);
   for(int i = 0; i < TABLE_SIZE; i++) p->table[i] = NULL;
   p->num_nodes = 0;
   p->next_id = 0;
-  p->audio_opts = a;
-  p->num_hw_inlets = 2;
-  p->hw_inlets = malloc(sizeof(inlet) * 2);
-  p->hw_outlets = malloc(sizeof(outlet) * 2);
-  p->hw_inlets[0] = new_inlet(a.buf_size, "left", 0.0);
-  p->hw_inlets[1] = new_inlet(a.buf_size, "right", 0.0);
-  p->num_hw_outlets = 2;
-  p->hw_outlets[0] = new_outlet(a.buf_size, "left");
-  p->hw_outlets[1] = new_outlet(a.buf_size, "right");
+  p->audio_opts = audio_opts;
+
+  p->hw_inlets = malloc(sizeof(inlet) * audio_opts.hw_out_channels);
+  for(int i = 0; i < audio_opts.hw_in_channels; i++){
+    char *name = malloc(2);
+    name[0] = i;
+    name[1] = '\0';
+    p->hw_inlets[i] = new_inlet(audio_opts.buf_size, name, 0.0);//TODO: fix/free the name
+  }
+
+  p->hw_outlets = malloc(sizeof(outlet) * audio_opts.hw_in_channels);
+  for(int i = 0; i < audio_opts.hw_out_channels; i++){
+    char *name = malloc(2);
+    name[0] = i;
+    name[1] = '\0';
+    //asprintf(&name, "hw_in:%d", i);
+    p->hw_outlets[i] = new_outlet(audio_opts.buf_size, name);//TODO: fix/free the name
+  }
+
+#ifdef BELA
+  p->digital_outlets = malloc(sizeof(outlet) * audio_opts.digital_channels);
+  for(int i = 0; i < audio_opts.digital_channels; i++){
+    char *name = malloc(2);
+    name[0] = i;
+    name[1] = '\0';
+    //asprintf(&name, "digital:%d", i);
+    p->digital_outlets[i] = new_outlet(audio_opts.digital_frames, name);//TODO: fix/free the name
+  }
+#endif
   return p;
 }
 
@@ -167,12 +186,12 @@ node *get_node(const patch *p, unsigned int id) {
 void free_patch(patch *p) {
   //free each node
   free_node_table(p->table);
-  for(int i = 0; i < p->num_hw_inlets; i++) {
+  for(int i = 0; i < p->audio_opts.hw_out_channels; i++) {
     free(p->hw_inlets[i].buf);
   }
   free(p->hw_inlets);
 
-  for(int i = 0; i < p->num_hw_outlets; i++) {
+  for(int i = 0; i < p->audio_opts.hw_in_channels; i++) {
     free(p->hw_outlets[i].buf);
   }
   free(p->hw_outlets);

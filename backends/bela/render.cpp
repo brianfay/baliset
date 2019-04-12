@@ -7,15 +7,22 @@ patch *p;
 
 bool setup(BelaContext *context, void *userData)
 {
-  p = new_patch();
+  audio_options audio_opts = {.buf_size=context->audioFrames, .sample_rate=context->audioSampleRate,
+                              .hw_in_channels=context->audioInChannels, .hw_out_channels=context->audioOutChannels,
+                              .digital_channels=context->digitalChannels, .digital_frames=context->digitalFrames};
+  p = new_patch(audio_opts);
   p->audio_opts.buf_size = context->audioFrames;
   p->audio_opts.sample_rate = context->audioSampleRate;
   p->audio_opts.hw_in_channels = context->audioInChannels;
   p->audio_opts.hw_out_channels = context->audioOutChannels;
+  p->audio_opts.digital_channels = context->digitalChannels;
+  p->audio_opts.digital_frames = context->digitalFrames;
+
   node *adc = new_adc(p);
   node *delay_l = new_delay(p);
   node *delay_r = new_delay(p);
   node *dac = new_dac(p);
+
   add_node(p, adc);
   add_node(p, delay_l);
   add_node(p, delay_r);
@@ -36,6 +43,8 @@ void render(BelaContext *context, void *userData)
 {
   const float *in = (float*)context->audioIn;
 
+  //TODO set backend_data with info needed by the nodes
+
   for(int i=0; i < context->audioFrames; i++) {
     p->hw_outlets[0].buf[i] = *in++;
     p->hw_outlets[1].buf[i] = *in++;
@@ -52,7 +61,7 @@ void render(BelaContext *context, void *userData)
 
 void cleanup(BelaContext *context, void *userData)
 {
-
+  //TODO cleanup the patch, shutdown osc server
 }
 
 void interrupt_handler(int)

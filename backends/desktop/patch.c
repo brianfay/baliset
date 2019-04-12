@@ -52,7 +52,9 @@ int main() {
   pa_run(audioCallback, p);
   */
 
-  patch *p = new_patch();
+  audio_options a = {.buf_size = 64, .sample_rate = 44100,
+                     .hw_in_channels = 2, .hw_out_channels = 2};
+  patch *p = new_patch(a);
   node *adc = new_adc(p);
   node *delay_l = new_delay(p);
   node *delay_r = new_delay(p);
