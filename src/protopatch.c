@@ -266,13 +266,31 @@ void process_patch(patch *p) {
 
     //add outlet contents to connected inlets
     for(int i = 0; i < n->num_outlets; i++) {
-      outlet o = n->outlets[i];
-      connection *c = o.connections;
+      outlet out = n->outlets[i];
+      connection *c = out.connections;
       while(c) {
         node *in_node = get_node(p, c->in_node_id);
         inlet in = in_node->inlets[c->inlet_id];
-        for(int j = 0; j < p->audio_opts.buf_size; j++) {
-          in.buf[j] += o.buf[j];
+        //cases:
+        if(out.buf_size == in.buf_size){
+          for(int idx = 0; idx < out.buf_size; idx++) {
+            in.buf[idx] += out.buf[idx];
+          }
+        }else if(out.buf_size < in.buf_size){
+          //upsampling by just repeating samples - "ZOH zero-order-hold" TODO: learn dsp and do zeros + lowpass filtering
+          //making the assumption that the buffer sizes are always powers of 2
+          unsigned int shift_amount = 1;
+          while(in.buf_size >> shift_amount != out.buf_size) shift_amount++;
+          for(int in_idx = 0; in_idx < in.buf_size; in_idx++){
+            in.buf[in_idx] += out.buf[in_idx >> shift_amount];
+          }
+        }else{
+          //downsampling/decimation by skipping samples - TODO: learn dsp and do a nice lowpass to prevent aliasing
+          unsigned int shift_amount = 1;
+          while(out.buf_size >> shift_amount != in.buf_size) shift_amount++;
+          for(int in_idx = 0; in_idx < in.buf_size; in_idx++){
+            in.buf[in_idx] += out.buf[in_idx << shift_amount];
+          }
         }
         c = c->next;
       }
