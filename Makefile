@@ -9,7 +9,7 @@ PROTOPATCH_TARGETS = $(PROTOPATCH_SRC:src/%.c=$(BUILDDIR)/%.o)
 NODE_SRCDIR = nodes
 NODE_SRC = $(wildcard $(NODE_SRCDIR)/*.c)
 ifeq ($(PROTOPATCH_ENV),bela)
-	NODE_SRC += $(wildcard $(NODE_SRCDIR/bela/*.c))
+	NODE_SRC += $(wildcard $(NODE_SRCDIR)/bela/*.c)
 endif
 NODE_TARGETS = $(NODE_SRC:nodes/%.c=$(BUILDDIR)/%.o)
 
@@ -38,4 +38,4 @@ $(NODE_TARGETS): $(BUILDDIR)/%.o : $(NODE_SRCDIR)/%.c include/protopatch.h
 .PHONY: clean
 
 clean:
-	rm $(BUILDDIR)/*
+	rm $(BUILDDIR)/*.o $(BUILDDIR)/protopatch $(BUILDDIR)/bela/*

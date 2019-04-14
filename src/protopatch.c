@@ -126,7 +126,6 @@ patch *new_patch(audio_options audio_opts) {
     char *name = malloc(2);
     name[0] = i;
     name[1] = '\0';
-    //asprintf(&name, "hw_in:%d", i);
     p->hw_outlets[i] = new_outlet(audio_opts.buf_size, name);//TODO: fix/free the name
   }
 
@@ -271,7 +270,10 @@ void process_patch(patch *p) {
       while(c) {
         node *in_node = get_node(p, c->in_node_id);
         inlet in = in_node->inlets[c->inlet_id];
-        //cases:
+        for(int idx = 0; idx < out.buf_size; idx++) {
+          in.buf[idx] += out.buf[idx];
+        }
+        /* resampling - commenting because I dunno if I really even want different buffer sizes
         if(out.buf_size == in.buf_size){
           for(int idx = 0; idx < out.buf_size; idx++) {
             in.buf[idx] += out.buf[idx];
@@ -292,6 +294,7 @@ void process_patch(patch *p) {
             in.buf[in_idx] += out.buf[in_idx << shift_amount];
           }
         }
+        */
         c = c->next;
       }
     }

@@ -138,8 +138,9 @@ node *new_sin_osc(const patch *p);
 node *new_adc(const patch *p);
 node *new_dac(const patch *p);
 node *new_delay(const patch *p);
+node *new_mul(const patch *p);
 #ifdef BELA
-node *new_buttons(const patch *p);
+node *new_digiread(const patch *p);
 #endif
 
 #endif
