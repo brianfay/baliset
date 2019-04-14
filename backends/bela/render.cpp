@@ -86,7 +86,7 @@ bool setup(BelaContext *context, void *userData)
   pp_connect(p, delay_r->id, 0, dac->id, 1);
   */
 
-  //sin multiply with button press
+  /*sin multiply with button press
   node *osc = new_sin_osc(p);
   node *osc2 = new_sin_osc(p);
   node *osc3 = new_sin_osc(p);
@@ -120,8 +120,23 @@ bool setup(BelaContext *context, void *userData)
   pp_connect(p, mul2->id, 0, dac->id, 1);
   pp_connect(p, mul3->id, 0, dac->id, 0);
   pp_connect(p, mul3->id, 0, dac->id, 1);
-  //pp_connect(p, osc->id, 0, dac->id, 0);
-  //pp_connect(p, osc->id, 0, dac->id, 1);
+  */
+
+  node *loop = new_looper(p);
+  node *digiread = new_digiread(p);
+  node *adc = new_adc(p);
+  node *dac = new_dac(p);
+  add_node(p, loop);
+  add_node(p, digiread);
+  add_node(p, adc);
+  add_node(p, dac);
+
+  pp_connect(p, adc->id, 0, dac->id, 0);
+  pp_connect(p, adc->id, 0, dac->id, 1);
+  pp_connect(p, adc->id, 0, loop->id, 0);
+  pp_connect(p, digiread->id, 0, loop->id, 1);
+  pp_connect(p, loop->id, 0, dac->id, 0);
+  pp_connect(p, loop->id, 0, dac->id, 1);
 
   sort_patch(p);
 	return true;
