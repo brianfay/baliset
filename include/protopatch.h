@@ -7,8 +7,12 @@ extern "C" {
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include "tinypipe.h"
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
+
+extern TinyPipe rt_consumer_pipe;
 
 typedef struct {
   unsigned int buf_size;
@@ -63,15 +67,12 @@ typedef struct node {
   unsigned int last_visited;// generation/timestamp thing
   void (*process) (struct node *self);
   void (*destroy) (struct node *self);
+  //keeping doubly-linked lists of nodes inside of a hash table, so we need references to prev/next
+  struct node *prev;
+  struct node *next;
 } node;
 
-typedef struct node_list_elem {
-  struct node_list_elem *prev;
-  struct node_list_elem *next;
-  node *node;
-} node_list_elem;
-
-typedef node_list_elem** node_table;
+typedef node** node_table;
 
 struct int_stack {
   int stk[MAX_NODES];
@@ -96,9 +97,11 @@ typedef struct patch {
   outlet *hw_outlets;
 } patch;
 
-inlet new_inlet(int buf_size, char *name, float default_val);
+node *new_node(const patch *p, int num_inlets, int num_outlets);
 
-outlet new_outlet(int buf_size, char *name);
+void init_inlet(node *n, int idx, char *name, float default_val);
+
+void init_outlet(node *n, int idx, char *name);
 
 patch *new_patch(audio_options audio_opts);
 
@@ -132,6 +135,10 @@ void set_control(node *n, char *ctl_name, float val);
 //
 
 void no_op(struct node *self);
+
+static volatile bool keepRunning = true;
+
+void run_osc_server(const patch *p);
 
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
 node *new_sin_osc(const patch *p);

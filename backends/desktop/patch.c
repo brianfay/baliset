@@ -1,5 +1,7 @@
 #include "protopatch.h"
+#include "string.h"
 #include <io.h>
+#include "tinypipe.h"
 
 static int audioCallback (const void *inputBuffer, void *outputBuffer,
                          unsigned long framesPerBuffer,
@@ -29,29 +31,34 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
 
 int main() {
   srand(0);
-  /* FM-y example
-  patch *p = new_patch();
-  node *sin = new_sin_osc(p);
-  node *lfo = new_sin_osc(p);
-  node *lfo2 = new_sin_osc(p);
-  set_control(lfo, "amp", 550.0);
-  set_control(lfo2, "freq", 0.03);
-  set_control(lfo2, "amp", 30.0);
+  tpipe_init(&rt_consumer_pipe, 1024 * 10); //might want to make some kind of protopatch_init for this
+  /* tpipe_clear(&rt_consumer_pipe); */
+  /* FM-y example*/
+  audio_options a = {.buf_size = 64, .sample_rate = 44100,
+                     .hw_in_channels = 2, .hw_out_channels = 2};
+  patch *p = new_patch(a);
+  /* node *sin = new_sin_osc(p); */
+  /* node *lfo = new_sin_osc(p); */
+  /* node *lfo2 = new_sin_osc(p); */
+  /* set_control(lfo, "amp", 550.0); */
+  /* set_control(lfo2, "freq", 0.03); */
+  /* set_control(lfo2, "amp", 30.0); */
   node *dac = new_dac(p);
   add_node(p, dac);
-  add_node(p, sin);
-  add_node(p, lfo);
-  add_node(p, lfo2);
-  //add_node(g, sin2);
-  pp_connect(p, lfo->id, 0, sin->id, 0);
-  pp_connect(p, lfo2->id, 0, lfo->id, 0);
-  pp_connect(p, sin->id, 0, dac->id, 0);
-  pp_connect(p, sin->id, 0, dac->id, 1);
+  /* add_node(p, sin); */
+  /* add_node(p, lfo); */
+  /* add_node(p, lfo2); */
+  /* //add_node(g, sin2); */
+  /* pp_connect(p, lfo->id, 0, sin->id, 0); */
+  /* pp_connect(p, lfo2->id, 0, lfo->id, 0); */
+  /* pp_connect(p, sin->id, 0, dac->id, 0); */
+  /* pp_connect(p, sin->id, 0, dac->id, 1); */
 
   sort_patch(p);
   pa_run(audioCallback, p);
-  */
+  
 
+  /*
   audio_options a = {.buf_size = 64, .sample_rate = 44100,
                      .hw_in_channels = 2, .hw_out_channels = 2};
   patch *p = new_patch(a);
@@ -59,10 +66,14 @@ int main() {
   node *delay_l = new_delay(p);
   node *delay_r = new_delay(p);
   node *dac = new_dac(p);
+  node *loop = new_looper(p);
   add_node(p, adc);
   add_node(p, delay_l);
   add_node(p, delay_r);
+  add_node(p, loop);
   add_node(p, dac);
+
+  printf("dac id: %d\n", dac->id);
 
   set_control(delay_l, "delay_time", 0.62);
   set_control(delay_r, "delay_time", 1.44);
@@ -73,10 +84,12 @@ int main() {
   pp_connect(p, delay_r->id, 0, dac->id, 1);
   sort_patch(p);
   pa_run(audioCallback, p);
+  */
 
-  while(1){
-    Pa_Sleep(3000);
-  }
+  run_osc_server(p);
+
+  /* while(1) {Pa_Sleep(3000);} */
 
   free_patch(p);
+  tpipe_free(&rt_consumer_pipe);
 }

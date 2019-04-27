@@ -60,18 +60,13 @@ delay_data *new_delay_data(const patch *p){
 }
 
 node *new_delay(const patch *p) {
-  node *n = malloc(sizeof(node));
-  n->last_visited = -1;
+  node *n = new_node(p, 3, 1);
   n->data = new_delay_data(p);
   n->process = &process_delay;
   n->destroy = &destroy_delay;
-  n->num_inlets = 3;
-  n->inlets = malloc(sizeof(inlet) * n->num_inlets);
-  n->inlets[0] = new_inlet(p->audio_opts.buf_size, "in", 0.0);
-  n->inlets[1] = new_inlet(p->audio_opts.buf_size, "delay_time", 0.25);
-  n->inlets[2] = new_inlet(p->audio_opts.buf_size, "feedback", 0.6);
-  n->num_outlets = 1;
-  n->outlets = malloc(sizeof(outlet) * n->num_outlets);
-  n->outlets[0] = new_outlet(p->audio_opts.buf_size, "out");
+  init_inlet(n, 0, "in", 0.0);
+  init_inlet(n, 1, "delay_time", 0.25);
+  init_inlet(n, 2, "feedback", 0.6);
+  init_outlet(n, 0, "out");
   return n;
 }

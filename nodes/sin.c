@@ -39,18 +39,12 @@ sin_data *new_sin_data(const patch *p){
 }
 
 node *new_sin_osc(const patch *p) {
-  node *n = malloc(sizeof(node));
+  node *n = new_node(p, 2, 1);
   n->data = new_sin_data(p);
-  n->last_visited = -1;
   n->process = &process_sin;
   n->destroy = &destroy_sin;
-  n->num_inlets = 2;//TODO create_inlet convenience function
-  n->num_outlets = 1;
-  n->num_controls = 0;
-  n->inlets = malloc(sizeof(inlet) * n->num_inlets);
-  n->inlets[0] = new_inlet(p->audio_opts.buf_size, "freq", 440.0);
-  n->inlets[1] = new_inlet(p->audio_opts.buf_size, "amp", 0.3);
-  n->outlets = malloc(sizeof(outlet));
-  n->outlets[0] = new_outlet(p->audio_opts.buf_size, "out");
+  init_inlet(n, 0, "freq", 440.0);
+  init_inlet(n, 1, "amp", 0.3);
+  init_outlet(n, 0, "out");
   return n;
 }

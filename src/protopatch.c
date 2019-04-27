@@ -1,6 +1,24 @@
 #include "protopatch.h"
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <assert.h>
+#include <fcntl.h>
+#include "tinyosc.h"
+
+TinyPipe rt_consumer_pipe;
+
+enum msg_type {
+  ADD_NODE,
+  DELETE_NODE,
+  CONNECT,
+  DISCONNECT,
+};
+
+struct rt_msg {
+  enum msg_type type;
+  node *node;
+};
 
 void free_connections(outlet out) {
   connection *ptr = out.connections;
@@ -28,6 +46,7 @@ void destroy_outlets(node *n) {
 }
 
 //TODO destroy_controls once I figure out what a control is
+/*
 node_list_elem *new_node_list_elem() {
   node_list_elem *elem = malloc(sizeof(node_list_elem));
   elem->prev = NULL;
@@ -35,47 +54,42 @@ node_list_elem *new_node_list_elem() {
   elem->node = NULL;
   return elem;
 }
+*/
 
-node_list_elem *search_for_elem(node_list_elem *head, unsigned int node_id) {
-  node_list_elem *ptr = head;
-  while(ptr && ptr->node) {
-    if(ptr->node->id == node_id) return ptr;
-    ptr = ptr->next;
-  }
-  return NULL;
-}
-
-void free_node_list(node_list_elem *ptr) {
-  node_list_elem *tmp;
-  while (ptr) {
-    tmp = ptr;
-    ptr = ptr->next;
-    if(tmp->node) {
-      tmp->node->destroy(tmp->node);
-      free(tmp->node);
+void free_node_list(node *n) {
+  node *tmp;
+  while (n) {
+    tmp = n;
+    n = n->next;
+    if(tmp) {
+      tmp->destroy(tmp);
+      free(tmp);
     }
-    free(tmp);
   }
 }
 
-void add_to_table(node_list_elem **nt, node *n) {
+void add_node(patch *p, node *n) {
+  n->id = p->next_id++;
+  printf("adding node with id %d\n", n->id);
+  p->num_nodes++;
+
   unsigned int idx = n->id % TABLE_SIZE;
-  node_list_elem *head = nt[idx];
+
+  //add to table
+  node *head = p->table[idx];
   //if it's the first thing ever, just set head
   if(!head) {
-    head = new_node_list_elem();
-    head->node = n;
-    nt[idx] = head;
+    printf("setting head\n");
+    head = n;
+    p->table[idx] = head;
     return;
   }
 
-  //otherwise allocate new pointer and push it onto head of list
-  node_list_elem *elem = new_node_list_elem();
-  elem->node = n;
-  elem->next = head;
-  head->prev = elem;
-//uhhh
-  nt[idx] = elem;
+  //otherwise push it onto the stack
+  printf("not setting head, just pushing on stack\n");
+  n->next = head;
+  head->prev = n;
+  p->table[idx] = n;
 }
 
 void free_node_table(node_table table) {
@@ -85,29 +99,57 @@ void free_node_table(node_table table) {
   free(table);
 }
 
-inlet new_inlet(int buf_size, char *name, float default_val) {
-  inlet i;
-  i.buf = calloc(buf_size, sizeof(float));
-  i.buf_size = buf_size;
-  i.num_connections = 0;
-  i.val = default_val;
-  i.name = name;
-  return i;
+node *new_node(const patch *p, int num_inlets, int num_outlets){
+  assert(num_inlets >= 0);
+  assert(num_outlets >= 0);
+  node *n = malloc(sizeof(node));
+  n->last_visited = -1;
+  n->num_inlets = num_inlets;
+  n->num_controls = 0;
+  if(num_inlets > 0) n->inlets = malloc(sizeof(inlet) * num_inlets);
+  for(int i=0; i < num_inlets; i++){
+    inlet *in = &n->inlets[i];
+    in->buf = calloc(p->audio_opts.buf_size, sizeof(float));
+    printf("the buf_size %d\n", p->audio_opts.buf_size);
+    in->buf_size = p->audio_opts.buf_size;
+    in->num_connections = 0;
+  }
+
+  n->num_outlets = num_outlets;
+  if(num_outlets > 0) n->outlets = malloc(sizeof(outlet) * num_outlets);
+  for(int i=0; i < num_outlets; i++){
+    outlet *out = &n->outlets[i];
+    out->buf = calloc(p->audio_opts.buf_size, sizeof(float));
+    printf("the buf_size %d\n", p->audio_opts.buf_size);
+    out->buf_size = p->audio_opts.buf_size;
+    out->num_connections = 0;
+    out->connections = NULL;
+  }
+
+  n->prev = NULL;
+  n->next = NULL;
+  return n;
 }
 
-outlet new_outlet(int buf_size, char *name) {
-  outlet o;
-  o.buf = calloc(buf_size, sizeof(float));
-  o.buf_size = buf_size;
-  o.name = name;
-  o.num_connections = 0;
-  o.connections = NULL;
-  return o;
+//void destroy_node
+
+void init_inlet(node *n, int idx, char *name, float default_val){
+  assert(idx >= 0);
+  assert(idx <= n->num_inlets);
+  n->inlets[idx].name = name;
+  n->inlets[idx].val = default_val;
 }
 
+void init_outlet(node *n, int idx, char *name){
+  assert(idx >= 0);
+  assert(idx <= n->num_outlets);
+  n->outlets[idx].name = name;
+}
+
+//init_outlet
 patch *new_patch(audio_options audio_opts) {
   patch *p = malloc(sizeof(patch));
-  p->table = malloc(sizeof(node_list_elem *) * TABLE_SIZE);
+  p->table = malloc(sizeof(node*) * TABLE_SIZE);//TODO this doesn't really need to be on the heap
   for(int i = 0; i < TABLE_SIZE; i++) p->table[i] = NULL;
   p->num_nodes = 0;
   p->next_id = 0;
@@ -118,7 +160,11 @@ patch *new_patch(audio_options audio_opts) {
     char *name = malloc(2);
     name[0] = i;
     name[1] = '\0';
-    p->hw_inlets[i] = new_inlet(audio_opts.buf_size, name, 0.0);//TODO: fix/free the name
+    p->hw_inlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
+    p->hw_inlets[i].buf_size = audio_opts.buf_size;
+    p->hw_inlets[i].num_connections = 0;
+    p->hw_inlets[i].name = name;
+    p->hw_inlets[i].val = 0.0;
   }
 
   p->hw_outlets = malloc(sizeof(outlet) * audio_opts.hw_in_channels);
@@ -126,7 +172,11 @@ patch *new_patch(audio_options audio_opts) {
     char *name = malloc(2);
     name[0] = i;
     name[1] = '\0';
-    p->hw_outlets[i] = new_outlet(audio_opts.buf_size, name);//TODO: fix/free the name
+    p->hw_outlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
+    p->hw_outlets[i].buf_size = audio_opts.buf_size;
+    p->hw_outlets[i].num_connections = 0;
+    p->hw_outlets[i].connections = NULL;
+    p->hw_outlets[i].name = name;
   }
 
 #ifdef BELA
@@ -170,15 +220,12 @@ void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned in
   prev->next = ptr;
 }
 
-void add_node(patch *p, node *n) {
-  n->id = p->next_id++;
-  p->num_nodes++;
-  add_to_table(p->table, n);
-}
-
 node *get_node(const patch *p, unsigned int id) {
-  node_list_elem *e = search_for_elem(p->table[id % TABLE_SIZE], id);
-  if (e) return e->node;
+  node *n = p->table[id % TABLE_SIZE];
+  while(n) {
+    if(n->id == id) return n;
+    n = n->next;
+  }
   return NULL;
 }
 
@@ -231,12 +278,12 @@ void sort_patch(patch *p) {
   //TODO maybe just use the stack on the patch, don't allocate a new one
   struct int_stack ordered_nodes = {.top = 0, .stk= {0}};
   for(int i = 0; i < TABLE_SIZE; i++) {
-    node_list_elem *ptr = p->table[i];
-    while(ptr && ptr->node) {
-      if(ptr->node->last_visited != generation) {
-        dfs_visit(p, generation, ptr->node->id, &ordered_nodes);
+    node *n = p->table[i];
+    while(n) {
+      if(n->last_visited != generation) {
+        dfs_visit(p, generation, n->id, &ordered_nodes);
       }
-      ptr = ptr->next;
+      n = n->next;
     }
   }
   ordered_nodes.top--;
@@ -256,7 +303,41 @@ void zero_all_inlets(const patch *p, struct int_stack s) {
   }
 }
 
+void handle_rt_msg(patch *p, struct rt_msg *msg){
+  switch(msg->type){
+    case ADD_NODE:
+      add_node(p, msg->node);
+      printf("the new node id %d\n", msg->node->id);
+      pp_connect(p, msg->node->id, 0, 0, 0);
+      pp_connect(p, msg->node->id, 0, 0, 1);
+      sort_patch(p);
+      printf("yay! added a sin node with id: %d\n", msg->node->id);
+      break;
+    case DELETE_NODE:
+      printf("yay! deleting node\n");
+      break;
+    case CONNECT:
+      printf("yay! connecting node\n");
+      break;
+    case DISCONNECT:
+      printf("yay! disconnecting node\n");
+      break;
+    default:
+      printf("handle_rt_msg: unrecognized msg_type\n");//TODO make some kind of exit handler
+  }
+}
+
 void process_patch(patch *p) {
+  while(tpipe_hasData(&rt_consumer_pipe)){
+    int len = 0;
+    char *buf = NULL;
+    buf = tpipe_getReadBuffer(&rt_consumer_pipe, &len);
+    assert(len > 0);
+    assert(buf != NULL);
+    handle_rt_msg(p, (struct rt_msg*) buf);
+    tpipe_consume(&rt_consumer_pipe);
+  }
+
   zero_all_inlets(p, p->order);
   int top = p->order.top;
   while(top >= 0) {
@@ -300,14 +381,10 @@ void process_patch(patch *p) {
     }
     top--;
   }
-  //inlet output = g->hw_inlets[1];
-  //for(int i = 0; i < g->audio_opts.buf_size; i++) {
-  //  fwrite(&output.buf[i], 1, sizeof(float), stdout);
-  //}
 }
 
-void set_control(node *n, char *ctl_name, float val){
-  for (int i = 0; i < n->num_inlets; i++){
+void set_control(node *n, char *ctl_name, float val) {
+  for(int i = 0; i < n->num_inlets; i++) {
     inlet *in = &n->inlets[i];
     if(strcmp(in->name, ctl_name) == 0) {
       in->val = val;
@@ -317,3 +394,60 @@ void set_control(node *n, char *ctl_name, float val){
 }
 
 void no_op(struct node *self) {return;}
+
+void handle_osc_message(const patch *p, tosc_message *osc){
+  char *address = tosc_getAddress(osc);
+  if(strncmp(address, "/node/add", strlen("/node/add")) == 0){
+    const char *type = tosc_getNextString(osc);
+    printf("got a node add message: %s\n", type);
+    node *n = NULL;
+    if(strcmp(type, "sin") == 0){
+      printf("making a new sin node\n");
+      n = new_sin_osc(p);
+    }
+    //write to rt thread
+    struct rt_msg msg = {.type = ADD_NODE, .node = n};
+    assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+  }
+}
+
+void run_osc_server(const patch *p){
+  const int fd = socket(AF_INET, SOCK_DGRAM, 0); //ip v4 datagram socket
+  fcntl(fd, F_SETFL, O_NONBLOCK); // set the socket to non-blocking
+  struct sockaddr_in sin;
+  sin.sin_family = AF_INET;
+  sin.sin_port = htons(9000);
+  sin.sin_addr.s_addr = INADDR_ANY;
+  bind(fd, (struct sockaddr *) &sin, sizeof(struct sockaddr_in));
+  printf("tinyosc is now listening on port 9000.\n");
+  printf("Press Ctrl+C to stop.\n");
+
+  char buffer[2048];
+
+  while (keepRunning) {
+    fd_set readSet;
+    FD_ZERO(&readSet);
+    FD_SET(fd, &readSet);
+    struct timeval timeout = {1, 0}; // select times out after 1 second
+    if (select(fd+1, &readSet, NULL, NULL, &timeout) > 0) {
+      struct sockaddr sa; // can be safely cast to sockaddr_in
+      socklen_t sa_len = sizeof(struct sockaddr_in);
+      int len = 0;
+      while ((len = (int) recvfrom(fd, buffer, sizeof(buffer), 0, &sa, &sa_len)) > 0) {
+        if (tosc_isBundle(buffer)) {
+          tosc_bundle bundle;
+          tosc_parseBundle(&bundle, buffer, len);
+          /* const uint64_t timetag = tosc_getTimetag(&bundle); */
+          tosc_message osc;
+          while (tosc_getNextMessage(&bundle, &osc)) {
+            handle_osc_message(p, &osc);
+          }
+        } else {
+          tosc_message osc;
+          tosc_parseMessage(&osc, buffer, len);
+          handle_osc_message(p, &osc);
+        }
+      }
+    }
+  }
+}

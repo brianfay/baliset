@@ -15,17 +15,11 @@ void destroy_mul(struct node *self) {
 }
 
 node *new_mul(const patch *p) {
-  node *n = malloc(sizeof(node));
-  n->last_visited = -1;
+  node *n = new_node(p, 2, 1);
   n->process = &process_mul;
   n->destroy = &destroy_mul;
-  n->num_inlets = 2;
-  n->num_outlets = 1;
-  n->num_controls = 0;
-  n->inlets = malloc(sizeof(inlet) * n->num_inlets);
-  n->inlets[0] = new_inlet(p->audio_opts.buf_size, "a", 0.0);
-  n->inlets[1] = new_inlet(p->audio_opts.buf_size, "b", 0.0);
-  n->outlets = malloc(sizeof(outlet));
-  n->outlets[0] = new_outlet(p->audio_opts.buf_size, "out");
+  init_inlet(n, 0, "a", 0.0);
+  init_inlet(n, 1, "b", 0.0);
+  init_outlet(n, 0, "out");
   return n;
 }
