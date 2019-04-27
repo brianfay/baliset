@@ -1,4 +1,4 @@
-#include "protopatch.h"
+#include "baliset.h"
 #include "string.h"
 #include <io.h>
 #include "tinypipe.h"
@@ -31,7 +31,7 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
 
 int main() {
   srand(0);
-  tpipe_init(&rt_consumer_pipe, 1024 * 10); //might want to make some kind of protopatch_init for this
+  tpipe_init(&rt_consumer_pipe, 1024 * 10); //might want to make some kind of baliset_init for this
   /* tpipe_clear(&rt_consumer_pipe); */
   /* FM-y example*/
   audio_options a = {.buf_size = 64, .sample_rate = 44100,
@@ -49,10 +49,10 @@ int main() {
   /* add_node(p, lfo); */
   /* add_node(p, lfo2); */
   /* //add_node(g, sin2); */
-  /* pp_connect(p, lfo->id, 0, sin->id, 0); */
-  /* pp_connect(p, lfo2->id, 0, lfo->id, 0); */
-  /* pp_connect(p, sin->id, 0, dac->id, 0); */
-  /* pp_connect(p, sin->id, 0, dac->id, 1); */
+  /* blst_connect(p, lfo->id, 0, sin->id, 0); */
+  /* blst_connect(p, lfo2->id, 0, lfo->id, 0); */
+  /* blst_connect(p, sin->id, 0, dac->id, 0); */
+  /* blst_connect(p, sin->id, 0, dac->id, 1); */
 
   sort_patch(p);
   pa_run(audioCallback, p);
@@ -78,10 +78,10 @@ int main() {
   set_control(delay_l, "delay_time", 0.62);
   set_control(delay_r, "delay_time", 1.44);
 
-  pp_connect(p, adc->id, 0, delay_l->id, 0);
-  pp_connect(p, adc->id, 1, delay_r->id, 0);
-  pp_connect(p, delay_l->id, 0, dac->id, 0);
-  pp_connect(p, delay_r->id, 0, dac->id, 1);
+  blst_connect(p, adc->id, 0, delay_l->id, 0);
+  blst_connect(p, adc->id, 1, delay_r->id, 0);
+  blst_connect(p, delay_l->id, 0, dac->id, 0);
+  blst_connect(p, delay_r->id, 0, dac->id, 1);
   sort_patch(p);
   pa_run(audioCallback, p);
   */

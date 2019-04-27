@@ -1,4 +1,7 @@
-A realtime audio patching program, written in C. Or at least... a prototype for one
+# baliset
+A realtime audio patching program, written in C.
+
+Uses [TinyPipe](https://github.com/mhroth/tinypipe) and [TinyOSC](https://github.com/mhroth/tinyosc) by Martin Roth
 
 Supported audio backends are desktop via Portaudio, and [Bela](bela.io)
 
@@ -12,14 +15,14 @@ To build on Desktop, run
 make
 ```
 
-To build on Bela, clone the project into `/root/protopatch` or something and run
+To build on Bela, clone the project into `/root/baliset` or something and run
 ```
 PROTOPATCH_ENV=bela make
 ```
 
 To use the program, run
 ```
-./build/protopatch
+./build/baliset
 ```
 
 If nothing works, run for the hills

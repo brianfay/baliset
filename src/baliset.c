@@ -1,4 +1,4 @@
-#include "protopatch.h"
+#include "baliset.h"
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -244,7 +244,7 @@ void free_patch(patch *p) {
   free(p);
 }
 
-void pp_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id) {
   node *out = get_node(p, out_node_id);
   node *in = get_node(p, in_node_id);
@@ -308,8 +308,8 @@ void handle_rt_msg(patch *p, struct rt_msg *msg){
     case ADD_NODE:
       add_node(p, msg->node);
       printf("the new node id %d\n", msg->node->id);
-      pp_connect(p, msg->node->id, 0, 0, 0);
-      pp_connect(p, msg->node->id, 0, 0, 1);
+      blst_connect(p, msg->node->id, 0, 0, 0);
+      blst_connect(p, msg->node->id, 0, 0, 1);
       sort_patch(p);
       printf("yay! added a sin node with id: %d\n", msg->node->id);
       break;

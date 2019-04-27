@@ -2,8 +2,8 @@
 extern "C" {
 #endif
 
-#ifndef PROTOPATCH_H
-#define PROTOPATCH_H
+#ifndef BALISET_H
+#define BALISET_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -118,10 +118,10 @@ node *get_node(const patch *p, unsigned int id);
 void free_patch(patch *p);
 
 //TODO error handling
-void pp_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
 
-void pp_disconnect(patch *p, unsigned int out_node_id,
+void blst_disconnect(patch *p, unsigned int out_node_id,
                    unsigned int outlet_id, unsigned int in_node_id, unsigned int inlet_id);
 
 void sort_patch(patch *p);

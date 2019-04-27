@@ -2,7 +2,7 @@
 #include <digital_gpio_mapping.h>
 #include <cmath>
 #include <csignal>
-#include "protopatch.h"
+#include "baliset.h"
 
 patch *p;
 
@@ -80,10 +80,10 @@ bool setup(BelaContext *context, void *userData)
   set_control(delay_l, "delay_time", 0.97);
   set_control(delay_r, "delay_time", 1.44);
 
-  pp_connect(p, adc->id, 0, delay_l->id, 0);
-  pp_connect(p, adc->id, 0, delay_r->id, 0);
-  pp_connect(p, delay_l->id, 0, dac->id, 0);
-  pp_connect(p, delay_r->id, 0, dac->id, 1);
+  blst_connect(p, adc->id, 0, delay_l->id, 0);
+  blst_connect(p, adc->id, 0, delay_r->id, 0);
+  blst_connect(p, delay_l->id, 0, dac->id, 0);
+  blst_connect(p, delay_r->id, 0, dac->id, 1);
   */
 
   /*sin multiply with button press
@@ -108,18 +108,18 @@ bool setup(BelaContext *context, void *userData)
   set_control(osc2, "freq", 440.0);
   set_control(osc3, "freq", 660.0);
 
-  pp_connect(p, osc->id, 0, mul->id, 0);
-  pp_connect(p, osc2->id, 0, mul2->id, 0);
-  pp_connect(p, osc3->id, 0, mul3->id, 0);
-  pp_connect(p, digiread->id, 0, mul->id, 1);
-  pp_connect(p, digiread->id, 1, mul2->id, 1);
-  pp_connect(p, digiread->id, 2, mul3->id, 1);
-  pp_connect(p, mul->id, 0, dac->id, 0);
-  pp_connect(p, mul->id, 0, dac->id, 1);
-  pp_connect(p, mul2->id, 0, dac->id, 0);
-  pp_connect(p, mul2->id, 0, dac->id, 1);
-  pp_connect(p, mul3->id, 0, dac->id, 0);
-  pp_connect(p, mul3->id, 0, dac->id, 1);
+  blst_connect(p, osc->id, 0, mul->id, 0);
+  blst_connect(p, osc2->id, 0, mul2->id, 0);
+  blst_connect(p, osc3->id, 0, mul3->id, 0);
+  blst_connect(p, digiread->id, 0, mul->id, 1);
+  blst_connect(p, digiread->id, 1, mul2->id, 1);
+  blst_connect(p, digiread->id, 2, mul3->id, 1);
+  blst_connect(p, mul->id, 0, dac->id, 0);
+  blst_connect(p, mul->id, 0, dac->id, 1);
+  blst_connect(p, mul2->id, 0, dac->id, 0);
+  blst_connect(p, mul2->id, 0, dac->id, 1);
+  blst_connect(p, mul3->id, 0, dac->id, 0);
+  blst_connect(p, mul3->id, 0, dac->id, 1);
   */
 
   node *loop = new_looper(p);
@@ -131,12 +131,12 @@ bool setup(BelaContext *context, void *userData)
   add_node(p, adc);
   add_node(p, dac);
 
-  pp_connect(p, adc->id, 0, dac->id, 0);
-  pp_connect(p, adc->id, 0, dac->id, 1);
-  pp_connect(p, adc->id, 0, loop->id, 0);
-  pp_connect(p, digiread->id, 0, loop->id, 1);
-  pp_connect(p, loop->id, 0, dac->id, 0);
-  pp_connect(p, loop->id, 0, dac->id, 1);
+  blst_connect(p, adc->id, 0, dac->id, 0);
+  blst_connect(p, adc->id, 0, dac->id, 1);
+  blst_connect(p, adc->id, 0, loop->id, 0);
+  blst_connect(p, digiread->id, 0, loop->id, 1);
+  blst_connect(p, loop->id, 0, dac->id, 0);
+  blst_connect(p, loop->id, 0, dac->id, 1);
 
   sort_patch(p);
 	return true;
