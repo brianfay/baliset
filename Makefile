@@ -1,11 +1,15 @@
 BUILDDIR = build
-CFLAGS = -Wall -Iinclude -lm
+TINYOSC = tinyosc
+TINYPIPE = tinypipe
+CFLAGS = -Wall -Iinclude -I$(TINYOSC) -I$(TINYPIPE) -lm
 
 CC=cc
 CXX=clang++
 
 PROTOPATCH_SRC = $(wildcard src/*.c)
 PROTOPATCH_TARGETS = $(PROTOPATCH_SRC:src/%.c=$(BUILDDIR)/%.o)
+TINYOSC_TARGET = $(BUILDDIR)/tinyosc.o
+TINYPIPE_TARGET = $(BUILDDIR)/tinypipe.o
 NODE_SRCDIR = nodes
 NODE_SRC = $(wildcard $(NODE_SRCDIR)/*.c)
 ifeq ($(PROTOPATCH_ENV),bela)
@@ -20,12 +24,12 @@ else
 endif
 
 ifeq ($(PROTOPATCH_ENV),bela)
-build/protopatch: $(wildcard backends/bela/*.cpp) $(PROTOPATCH_TARGETS) $(NODE_TARGETS)
+$(BUILDDIR)/protopatch: $(wildcard backends/bela/*.cpp) $(PROTOPATCH_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
 #I'm not sure if compiling the C files with a c compiiler and then the main program with a C++ compiler is a good idea
 #but I guess I'll find out
 	$(CXX) -o $@ $^ $(CFLAGS)
 else
-build/protopatch: $(wildcard backends/desktop/*.c) $(PROTOPATCH_TARGETS) $(NODE_TARGETS)
+$(BUILDDIR)/protopatch: $(wildcard backends/desktop/*.c) $(PROTOPATCH_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
 	$(CC) -o $@ $^ $(CFLAGS)
 endif
 
@@ -34,6 +38,12 @@ $(PROTOPATCH_TARGETS): $(PROTOPATCH_SRC)
 
 $(NODE_TARGETS): $(BUILDDIR)/%.o : $(NODE_SRCDIR)/%.c include/protopatch.h
 	$(CC) -c $< -o $@ $(CFLAGS)
+
+$(TINYOSC_TARGET): $(TINYOSC)/tinyosc.c
+	$(CC) -c $< -o $@ -Werror -O0
+
+$(TINYPIPE_TARGET): $(TINYPIPE)/tinypipe.c
+	$(CC) -c $< -o $@ -Werror -O0
 
 .PHONY: clean
 
