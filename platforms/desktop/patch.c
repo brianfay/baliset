@@ -31,8 +31,6 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
 
 int main() {
   srand(0);
-  tpipe_init(&rt_consumer_pipe, 1024 * 10); //might want to make some kind of baliset_init for this
-  /* tpipe_clear(&rt_consumer_pipe); */
   /* FM-y example*/
   audio_options a = {.buf_size = 64, .sample_rate = 44100,
                      .hw_in_channels = 2, .hw_out_channels = 2};
@@ -90,5 +88,4 @@ int main() {
   /* while(1) {Pa_Sleep(3000);} */
 
   free_patch(p);
-  tpipe_free(&rt_consumer_pipe);
 }

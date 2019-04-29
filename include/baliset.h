@@ -12,8 +12,6 @@ extern "C" {
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
 
-extern TinyPipe rt_consumer_pipe;
-
 typedef struct {
   unsigned int buf_size;
   unsigned int sample_rate;
@@ -95,6 +93,7 @@ typedef struct patch {
   //TODO might want digital inlets, and analog inlets/outlets
 #endif
   outlet *hw_outlets;
+  TinyPipe consumer_pipe, producer_pipe;
 } patch;
 
 node *new_node(const patch *p, int num_inlets, int num_outlets);
@@ -138,7 +137,7 @@ void no_op(struct node *self);
 
 static volatile bool keepRunning = true;
 
-void run_osc_server(const patch *p);
+void run_osc_server(patch *p);
 
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
 node *new_sin_osc(const patch *p);

@@ -6,13 +6,15 @@
 #include <fcntl.h>
 #include "tinyosc.h"
 
-TinyPipe rt_consumer_pipe;
-
-enum msg_type {
+enum rt_msg_type {
   ADD_NODE,
   DELETE_NODE,
   CONNECT,
   DISCONNECT,
+};
+
+enum non_rt_msg_type {
+  FREE_PTR,
 };
 
 struct add_msg {
@@ -31,12 +33,25 @@ struct disconnect_msg {
   int32_t inlet_idx;
 };
 
+struct free_ptr_msg {
+  void *ptr;
+};
+
+//the non-dsp thread writes this to the dsp thread
 struct rt_msg {
-  enum msg_type type;
+  enum rt_msg_type type;
   union {
     struct add_msg add_msg;
     struct connect_msg connect_msg;
     struct disconnect_msg disconnect_msg;
+  };
+};
+
+//the dsp thread writes these to the non-dsp thread
+struct non_rt_msg {
+  enum non_rt_msg_type type;
+  union {
+    struct free_ptr_msg free_ptr_msg;
   };
 };
 
@@ -213,6 +228,9 @@ patch *new_patch(audio_options audio_opts) {
     p->hw_outlets[i].name = name;
   }
 
+  tpipe_init(&p->consumer_pipe, 1024 * 10);
+  tpipe_init(&p->producer_pipe, 1024 * 10);
+
 #ifdef BELA
   p->digital_outlets = malloc(sizeof(outlet) * audio_opts.digital_channels);
   for(int i = 0; i < audio_opts.digital_channels; i++){
@@ -341,6 +359,8 @@ void free_patch(patch *p) {
     free(p->hw_outlets[i].buf);
   }
   free(p->hw_outlets);
+  tpipe_free(&p->consumer_pipe);
+  tpipe_free(&p->producer_pipe);
   free(p);
 }
 
@@ -409,8 +429,8 @@ void zero_all_inlets(const patch *p, struct int_stack s) {
   }
 }
 
-void handle_rt_msg(patch *p, struct rt_msg *msg){
-  switch(msg->type){
+void handle_rt_msg(patch *p, struct rt_msg *msg) {
+  switch(msg->type) {
     case ADD_NODE:
       add_node(p, msg->add_msg.node);
       sort_patch(p);
@@ -423,26 +443,32 @@ void handle_rt_msg(patch *p, struct rt_msg *msg){
                         msg->connect_msg.in_conn);
       break;
     case DISCONNECT:
-      disconnect(p, msg->disconnect_msg.out_node_id,
-                    msg->disconnect_msg.outlet_idx,
-                    msg->disconnect_msg.in_node_id,
-                    msg->disconnect_msg.inlet_idx);
-        //TODO tell non-rt thread to free connection objects
+      {
+      struct disconnect_pair d = disconnect(p, msg->disconnect_msg.out_node_id,
+                                            msg->disconnect_msg.outlet_idx,
+                                            msg->disconnect_msg.in_node_id,
+                                            msg->disconnect_msg.inlet_idx);
+      struct free_ptr_msg f = {.ptr = d.in_conn};
+      struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
+      assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
+      msg.free_ptr_msg.ptr = d.out_conn;
+      assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
       break;
+      }
     default:
       printf("handle_rt_msg: unrecognized msg_type\n");//TODO make some kind of exit handler
   }
 }
 
 void process_patch(patch *p) {
-  while(tpipe_hasData(&rt_consumer_pipe)){
+  while(tpipe_hasData(&p->consumer_pipe)){
     int len = 0;
     char *buf = NULL;
-    buf = tpipe_getReadBuffer(&rt_consumer_pipe, &len);
+    buf = tpipe_getReadBuffer(&p->consumer_pipe, &len);
     assert(len > 0);
     assert(buf != NULL);
     handle_rt_msg(p, (struct rt_msg*) buf);
-    tpipe_consume(&rt_consumer_pipe);
+    tpipe_consume(&p->consumer_pipe);
   }
   zero_all_inlets(p, p->order);
   int top = p->order.top;
@@ -501,7 +527,7 @@ void set_control(node *n, char *ctl_name, float val) {
 
 void no_op(struct node *self) {return;}
 
-void handle_osc_message(const patch *p, tosc_message *osc){
+void handle_osc_message(patch *p, tosc_message *osc){
   char *address = tosc_getAddress(osc);
   if(strncmp(address, "/node/add", strlen("/node/add")) == 0) {
     const char *type = tosc_getNextString(osc);
@@ -511,7 +537,7 @@ void handle_osc_message(const patch *p, tosc_message *osc){
     }
     struct add_msg body = {.node = n};
     struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
-    assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+    assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
   } else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -529,7 +555,7 @@ void handle_osc_message(const patch *p, tosc_message *osc){
     in_conn->io_id = outlet_idx;
     struct connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
     struct rt_msg msg = {.type = CONNECT, .connect_msg = body};
-    assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+    assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
   } else if(strncmp(address, "/node/disconnect", strlen("/node/disconnect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -537,11 +563,22 @@ void handle_osc_message(const patch *p, tosc_message *osc){
     int32_t inlet_idx = tosc_getNextInt32(osc);
     struct disconnect_msg body = {.out_node_id = out_node_id, .outlet_idx = outlet_idx, in_node_id = in_node_id, inlet_idx = inlet_idx};
     struct rt_msg msg = {.type = DISCONNECT, .disconnect_msg = body};
-    assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+    assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
   }
 }
 
-void run_osc_server(const patch *p){
+void handle_non_rt_msg(patch *p, struct non_rt_msg *msg) {
+  switch(msg->type) {
+  case FREE_PTR:
+    printf("freeing pointer\n");
+    free(msg->free_ptr_msg.ptr);
+    break;
+  default:
+    printf("handle_non_rt_msg: unrecognized msg_type\n");
+  }
+}
+
+void run_osc_server(patch *p){
   const int fd = socket(AF_INET, SOCK_DGRAM, 0); //ip v4 datagram socket
   fcntl(fd, F_SETFL, O_NONBLOCK); // set the socket to non-blocking
   struct sockaddr_in sin;
@@ -555,6 +592,16 @@ void run_osc_server(const patch *p){
   char buffer[2048];
 
   while (keepRunning) {
+    while(tpipe_hasData(&p->producer_pipe)) {
+      int len = 0;
+      char *buf = NULL;
+      buf = tpipe_getReadBuffer(&p->producer_pipe, &len);
+      assert(len > 0);
+      assert(buf != NULL);
+      handle_non_rt_msg(p, (struct non_rt_msg*) buf);
+      tpipe_consume(&p->producer_pipe);
+    }
+
     fd_set readSet;
     FD_ZERO(&readSet);
     FD_SET(fd, &readSet);
