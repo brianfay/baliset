@@ -27,15 +27,16 @@ typedef struct {
 
 typedef struct connection {
   struct connection *next;
-  unsigned int in_node_id;
-  unsigned int inlet_id;
+  unsigned int node_id;
+  unsigned int io_id;
 } connection;
 
 typedef struct {
   float *buf;
-  float val; //if there is nothing connected, this value will be used
+  float val; //if there is nothing connected, this value will be used, might swap this concept out for a "control" eventually
   int buf_size;
   int num_connections;
+  connection *connections;
   char *name;
 } inlet;
 
@@ -83,7 +84,6 @@ typedef struct patch {
   //hashtable of nodes
   node_table table;
   struct int_stack order;
-  //thing representing connections
   int next_id; //should monotonically increase
   int num_nodes; //dunno if I need this
   audio_options audio_opts;
@@ -118,7 +118,7 @@ node *get_node(const patch *p, unsigned int id);
 void free_patch(patch *p);
 
 //TODO error handling
-void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_connect(const patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
 
 void blst_disconnect(patch *p, unsigned int out_node_id,

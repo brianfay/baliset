@@ -15,9 +15,21 @@ enum msg_type {
   DISCONNECT,
 };
 
+struct add_msg {
+  node *node;
+};
+
+struct connect_msg {
+  connection *in_conn;
+  connection *out_conn;
+};
+
 struct rt_msg {
   enum msg_type type;
-  node *node;
+  union {
+    struct add_msg add_msg;
+    struct connect_msg connect_msg;
+  };
 };
 
 void free_connections(outlet out) {
@@ -44,6 +56,24 @@ void destroy_outlets(node *n) {
   }
   free(n->outlets);
 }
+
+/* int get_outlet_idx(node *n, const char *name){ */
+/*   for(int i=0; i < n->num_outlets; i++){ */
+/*     if(strcmp(name, n->outlets[i].name) == 0){ */
+/*       return i; */
+/*     } */
+/*   } */
+/*   return -1; */
+/* } */
+
+/* int get_inlet_idx(node *n, const char *name){ */
+/*   for(int i=0; i < n->num_inlets; i++){ */
+/*     if(strcmp(name, n->inlets[i].name) == 0){ */
+/*       return i; */
+/*     } */
+/*   } */
+/*   return -1; */
+/* } */
 
 //TODO destroy_controls once I figure out what a control is
 /*
@@ -79,14 +109,12 @@ void add_node(patch *p, node *n) {
   node *head = p->table[idx];
   //if it's the first thing ever, just set head
   if(!head) {
-    printf("setting head\n");
     head = n;
     p->table[idx] = head;
     return;
   }
 
   //otherwise push it onto the stack
-  printf("not setting head, just pushing on stack\n");
   n->next = head;
   head->prev = n;
   p->table[idx] = n;
@@ -110,7 +138,6 @@ node *new_node(const patch *p, int num_inlets, int num_outlets){
   for(int i=0; i < num_inlets; i++){
     inlet *in = &n->inlets[i];
     in->buf = calloc(p->audio_opts.buf_size, sizeof(float));
-    printf("the buf_size %d\n", p->audio_opts.buf_size);
     in->buf_size = p->audio_opts.buf_size;
     in->num_connections = 0;
   }
@@ -120,7 +147,6 @@ node *new_node(const patch *p, int num_inlets, int num_outlets){
   for(int i=0; i < num_outlets; i++){
     outlet *out = &n->outlets[i];
     out->buf = calloc(p->audio_opts.buf_size, sizeof(float));
-    printf("the buf_size %d\n", p->audio_opts.buf_size);
     out->buf_size = p->audio_opts.buf_size;
     out->num_connections = 0;
     out->connections = NULL;
@@ -185,39 +211,15 @@ patch *new_patch(audio_options audio_opts) {
     char *name = malloc(2);
     name[0] = i;
     name[1] = '\0';
-    //asprintf(&name, "digital:%d", i);
     p->digital_outlets[i] = new_outlet(audio_opts.digital_frames, name);//TODO: fix/free the name
   }
 #endif
   return p;
 }
 
-void add_connection(outlet *out, inlet *in, unsigned int in_node_id, unsigned int inlet_id) {
-  //TODO detect cycles
-  connection *ptr = out->connections;
-  if (!ptr) {
-    out->num_connections++;
-    in->num_connections++;
-    ptr = malloc(sizeof(connection));
-    ptr->next = NULL;
-    ptr->in_node_id = in_node_id;
-    ptr->inlet_id = inlet_id;
-    out->connections = ptr;
-    return;
-  }
-  connection *prev = ptr;
-  while(ptr) {
-    if(ptr->in_node_id == in_node_id && ptr->inlet_id == inlet_id) return;
-    prev = ptr;
-    ptr = ptr->next;
-  }
-  out->num_connections++;
-  in->num_connections++;
-  ptr = malloc(sizeof(connection));
-  ptr->next = NULL;
-  ptr->in_node_id = in_node_id;
-  ptr->inlet_id = inlet_id;
-  prev->next = ptr;
+int detect_cycles(const patch *p, int out_node_id, int in_node_id, int outlet_idx, int inlet_idx){
+  //dfs thru, mark, if you've already marked something return -1
+  return -1;
 }
 
 node *get_node(const patch *p, unsigned int id) {
@@ -227,6 +229,48 @@ node *get_node(const patch *p, unsigned int id) {
     n = n->next;
   }
   return NULL;
+}
+
+void add_connection(const patch *p, connection *out_conn, connection *in_conn) {
+  //add connection to both in node and out node
+  node *in_node = get_node(p, out_conn->node_id);
+  node *out_node = get_node(p, in_conn->node_id);
+  inlet *in = &in_node->inlets[out_conn->io_id];
+  outlet *out = &out_node->outlets[in_conn->io_id];
+
+  connection *in_ptr = in->connections;
+  connection *out_ptr = out->connections;
+
+  if(!in_ptr) { //it's the first connection, add it to head
+    in->connections = in_conn;
+    in->num_connections++;
+  } else {
+    connection *in_prev = in_ptr;
+    while(in_ptr) {
+      if(in_ptr->node_id == in_conn->node_id && in_ptr->io_id == in_conn->io_id){
+        //if this is the case, we're already connected. return without connecting
+        return;
+      }
+      in_prev = in_ptr;
+      in_ptr = in_ptr->next;
+    }
+    in->num_connections++;
+    in_prev->next = in_conn;
+  }
+
+  if(!out_ptr) {
+    out->connections = out_conn;
+    out->num_connections++;
+  } else {
+    connection *out_prev = out_ptr;
+    while(out_ptr) {
+      //don't need to check for dupes, should have caught it in the in_ptr case
+      out_prev = out_ptr;
+      out_ptr = out_ptr->next;
+    }
+    out->num_connections++;
+    out_prev->next = out_conn;
+  }
 }
 
 void free_patch(patch *p) {
@@ -244,14 +288,20 @@ void free_patch(patch *p) {
   free(p);
 }
 
-void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_connect(const patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id) {
-  node *out = get_node(p, out_node_id);
-  node *in = get_node(p, in_node_id);
-  if (out && in && inlet_id < in->num_inlets
-      && outlet_id < out->num_outlets) {
-    add_connection(&out->outlets[outlet_id], &in->inlets[inlet_id], in_node_id, inlet_id);
-  }
+  connection *out_conn = malloc(sizeof(connection));
+  connection *in_conn = malloc(sizeof(connection));
+
+  out_conn->next = NULL;
+  out_conn->node_id = in_node_id;
+  out_conn->io_id = inlet_id;
+
+  in_conn->next = NULL;
+  in_conn->node_id = out_node_id;
+  in_conn->io_id = outlet_id;
+
+  add_connection(p, out_conn, in_conn);
 }
 
 void dfs_visit(const patch *p, unsigned int generation, unsigned int node_id, struct int_stack *s) {
@@ -260,9 +310,9 @@ void dfs_visit(const patch *p, unsigned int generation, unsigned int node_id, st
   for(int i = 0; i < n->num_outlets; i++) {
     connection *conn = n->outlets[i].connections;
     while(conn) {
-      node *in = get_node(p, conn->in_node_id);
+      node *in = get_node(p, conn->node_id);
       if(in->last_visited != generation) {
-        dfs_visit(p, generation, conn->in_node_id, s);
+        dfs_visit(p, generation, conn->node_id, s);
       }
       conn = conn->next;
     }
@@ -306,18 +356,16 @@ void zero_all_inlets(const patch *p, struct int_stack s) {
 void handle_rt_msg(patch *p, struct rt_msg *msg){
   switch(msg->type){
     case ADD_NODE:
-      add_node(p, msg->node);
-      printf("the new node id %d\n", msg->node->id);
-      blst_connect(p, msg->node->id, 0, 0, 0);
-      blst_connect(p, msg->node->id, 0, 0, 1);
+      add_node(p, msg->add_msg.node);
       sort_patch(p);
-      printf("yay! added a sin node with id: %d\n", msg->node->id);
       break;
     case DELETE_NODE:
       printf("yay! deleting node\n");
       break;
     case CONNECT:
-      printf("yay! connecting node\n");
+      printf("connecting node\n");
+      add_connection(p, msg->connect_msg.out_conn,
+                        msg->connect_msg.in_conn);
       break;
     case DISCONNECT:
       printf("yay! disconnecting node\n");
@@ -337,7 +385,6 @@ void process_patch(patch *p) {
     handle_rt_msg(p, (struct rt_msg*) buf);
     tpipe_consume(&rt_consumer_pipe);
   }
-
   zero_all_inlets(p, p->order);
   int top = p->order.top;
   while(top >= 0) {
@@ -349,8 +396,8 @@ void process_patch(patch *p) {
       outlet out = n->outlets[i];
       connection *c = out.connections;
       while(c) {
-        node *in_node = get_node(p, c->in_node_id);
-        inlet in = in_node->inlets[c->inlet_id];
+        node *in_node = get_node(p, c->node_id);
+        inlet in = in_node->inlets[c->io_id];
         for(int idx = 0; idx < out.buf_size; idx++) {
           in.buf[idx] += out.buf[idx];
         }
@@ -399,14 +446,31 @@ void handle_osc_message(const patch *p, tosc_message *osc){
   char *address = tosc_getAddress(osc);
   if(strncmp(address, "/node/add", strlen("/node/add")) == 0){
     const char *type = tosc_getNextString(osc);
-    printf("got a node add message: %s\n", type);
     node *n = NULL;
     if(strcmp(type, "sin") == 0){
-      printf("making a new sin node\n");
       n = new_sin_osc(p);
     }
     //write to rt thread
-    struct rt_msg msg = {.type = ADD_NODE, .node = n};
+    struct add_msg body = {.node = n};
+    struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
+    assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+  }else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0){
+    int32_t out_node_id = tosc_getNextInt32(osc);
+    int32_t outlet_idx = tosc_getNextInt32(osc);
+    int32_t in_node_id = tosc_getNextInt32(osc);
+    int32_t inlet_idx = tosc_getNextInt32(osc);
+
+    //TODO handle node not found or inlet not found, cycles
+    connection *in_conn = malloc(sizeof(connection));
+    connection *out_conn = malloc(sizeof(connection));
+    out_conn->next = NULL;
+    out_conn->node_id = in_node_id;
+    out_conn->io_id = inlet_idx;
+    in_conn->next = NULL;
+    in_conn->node_id = out_node_id;
+    in_conn->io_id = outlet_idx;
+    struct connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
+    struct rt_msg msg = {.type = CONNECT, .connect_msg = body};
     assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
   }
 }

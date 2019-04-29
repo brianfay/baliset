@@ -37,18 +37,17 @@ int main() {
   audio_options a = {.buf_size = 64, .sample_rate = 44100,
                      .hw_in_channels = 2, .hw_out_channels = 2};
   patch *p = new_patch(a);
-  /* node *sin = new_sin_osc(p); */
+  node *sin = new_sin_osc(p);
   /* node *lfo = new_sin_osc(p); */
   /* node *lfo2 = new_sin_osc(p); */
+  node *dac = new_dac(p);
   /* set_control(lfo, "amp", 550.0); */
   /* set_control(lfo2, "freq", 0.03); */
   /* set_control(lfo2, "amp", 30.0); */
-  node *dac = new_dac(p);
-  add_node(p, dac);
-  /* add_node(p, sin); */
+  add_node(p, sin);
   /* add_node(p, lfo); */
   /* add_node(p, lfo2); */
-  /* //add_node(g, sin2); */
+  add_node(p, dac);
   /* blst_connect(p, lfo->id, 0, sin->id, 0); */
   /* blst_connect(p, lfo2->id, 0, lfo->id, 0); */
   /* blst_connect(p, sin->id, 0, dac->id, 0); */
