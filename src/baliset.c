@@ -24,11 +24,19 @@ struct connect_msg {
   connection *out_conn;
 };
 
+struct disconnect_msg {
+  int32_t out_node_id;
+  int32_t outlet_idx;
+  int32_t in_node_id;
+  int32_t inlet_idx;
+};
+
 struct rt_msg {
   enum msg_type type;
   union {
     struct add_msg add_msg;
     struct connect_msg connect_msg;
+    struct disconnect_msg disconnect_msg;
   };
 };
 
@@ -273,6 +281,54 @@ void add_connection(const patch *p, connection *out_conn, connection *in_conn) {
   }
 }
 
+struct disconnect_pair {
+  connection *in_conn;
+  connection *out_conn;
+};
+
+struct disconnect_pair disconnect(const patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx) {
+  node *out_node = get_node(p, out_node_id);
+  node *in_node = get_node(p, in_node_id);
+  inlet *in = &in_node->inlets[inlet_idx];
+  outlet *out = &out_node->outlets[outlet_idx];
+
+  connection *out_ptr = out->connections;
+  connection *out_prev = out_ptr;
+  connection *in_ptr = in->connections;
+  connection *in_prev = in_ptr;
+
+  while(out_ptr) {
+    if(out_ptr->node_id == in_node_id && out_ptr->io_id == inlet_idx){
+      out->num_connections--;
+      if(out_ptr == out_prev) {
+        out->connections = NULL; //head
+      } else {
+        out_prev->next = out_ptr->next;
+      }
+      break;
+    }
+    out_prev = out_ptr;
+    out_ptr = out_ptr->next;
+  }
+
+  while(in_ptr) {
+    if(in_ptr->node_id == out_node_id && in_ptr->io_id == outlet_idx) {
+      in->num_connections--;
+      if(in_ptr == in_prev) {
+        in->connections = NULL;
+      } else {
+        in_prev->next = in_ptr->next;
+      }
+      break;
+    }
+    in_prev = in_ptr;
+    in_ptr = in_ptr->next;
+  }
+
+  struct disconnect_pair d = {in_ptr, out_ptr};
+  return d;
+}
+
 void free_patch(patch *p) {
   //free each node
   free_node_table(p->table);
@@ -363,12 +419,15 @@ void handle_rt_msg(patch *p, struct rt_msg *msg){
       printf("yay! deleting node\n");
       break;
     case CONNECT:
-      printf("connecting node\n");
       add_connection(p, msg->connect_msg.out_conn,
                         msg->connect_msg.in_conn);
       break;
     case DISCONNECT:
-      printf("yay! disconnecting node\n");
+      disconnect(p, msg->disconnect_msg.out_node_id,
+                    msg->disconnect_msg.outlet_idx,
+                    msg->disconnect_msg.in_node_id,
+                    msg->disconnect_msg.inlet_idx);
+        //TODO tell non-rt thread to free connection objects
       break;
     default:
       printf("handle_rt_msg: unrecognized msg_type\n");//TODO make some kind of exit handler
@@ -444,17 +503,16 @@ void no_op(struct node *self) {return;}
 
 void handle_osc_message(const patch *p, tosc_message *osc){
   char *address = tosc_getAddress(osc);
-  if(strncmp(address, "/node/add", strlen("/node/add")) == 0){
+  if(strncmp(address, "/node/add", strlen("/node/add")) == 0) {
     const char *type = tosc_getNextString(osc);
     node *n = NULL;
     if(strcmp(type, "sin") == 0){
       n = new_sin_osc(p);
     }
-    //write to rt thread
     struct add_msg body = {.node = n};
     struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
     assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
-  }else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0){
+  } else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
     int32_t in_node_id = tosc_getNextInt32(osc);
@@ -471,6 +529,14 @@ void handle_osc_message(const patch *p, tosc_message *osc){
     in_conn->io_id = outlet_idx;
     struct connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
     struct rt_msg msg = {.type = CONNECT, .connect_msg = body};
+    assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+  } else if(strncmp(address, "/node/disconnect", strlen("/node/disconnect")) == 0) {
+    int32_t out_node_id = tosc_getNextInt32(osc);
+    int32_t outlet_idx = tosc_getNextInt32(osc);
+    int32_t in_node_id = tosc_getNextInt32(osc);
+    int32_t inlet_idx = tosc_getNextInt32(osc);
+    struct disconnect_msg body = {.out_node_id = out_node_id, .outlet_idx = outlet_idx, in_node_id = in_node_id, inlet_idx = inlet_idx};
+    struct rt_msg msg = {.type = DISCONNECT, .disconnect_msg = body};
     assert(tpipe_write(&rt_consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
   }
 }
