@@ -3,7 +3,7 @@ A realtime audio patching program, written in C.
 
 Uses [TinyPipe](https://github.com/mhroth/tinypipe) and [TinyOSC](https://github.com/mhroth/tinyosc) by Martin Roth
 
-Supported audio backends are desktop via Portaudio, and [Bela](bela.io)
+Supported platforms are desktop via Portaudio, and [Bela](bela.io)
 
 You will need a build directory:
 ```

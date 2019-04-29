@@ -55,7 +55,7 @@ int main() {
 
   sort_patch(p);
   pa_run(audioCallback, p);
-  
+
 
   /*
   audio_options a = {.buf_size = 64, .sample_rate = 44100,

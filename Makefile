@@ -24,12 +24,12 @@ else
 endif
 
 ifeq ($(BALISET_ENV),bela)
-$(BUILDDIR)/baliset: $(wildcard backends/bela/*.cpp) $(BALISET_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
+$(BUILDDIR)/baliset: $(wildcard platforms/bela/*.cpp) $(BALISET_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
 #I'm not sure if compiling the C files with a c compiiler and then the main program with a C++ compiler is a good idea
 #but I guess I'll find out
 	$(CXX) -o $@ $^ $(CFLAGS)
 else
-$(BUILDDIR)/baliset: $(wildcard backends/desktop/*.c) $(BALISET_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
+$(BUILDDIR)/baliset: $(wildcard platforms/desktop/*.c) $(BALISET_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
 	$(CC) -o $@ $^ $(CFLAGS)
 endif
 
