@@ -553,28 +553,6 @@ void process_patch(patch *p) {
         for(int idx = 0; idx < out.buf_size; idx++) {
           in.buf[idx] += out.buf[idx];
         }
-        /* resampling - commenting because I dunno if I really even want different buffer sizes
-        if(out.buf_size == in.buf_size){
-          for(int idx = 0; idx < out.buf_size; idx++) {
-            in.buf[idx] += out.buf[idx];
-          }
-        }else if(out.buf_size < in.buf_size){
-          //upsampling by just repeating samples - "ZOH zero-order-hold" TODO: learn dsp and do zeros + lowpass filtering
-          //making the assumption that the buffer sizes are always powers of 2
-          unsigned int shift_amount = 1;
-          while(in.buf_size >> shift_amount != out.buf_size) shift_amount++;
-          for(int in_idx = 0; in_idx < in.buf_size; in_idx++){
-            in.buf[in_idx] += out.buf[in_idx >> shift_amount];
-          }
-        }else{
-          //downsampling/decimation by skipping samples - TODO: learn dsp and do a nice lowpass to prevent aliasing
-          unsigned int shift_amount = 1;
-          while(out.buf_size >> shift_amount != in.buf_size) shift_amount++;
-          for(int in_idx = 0; in_idx < in.buf_size; in_idx++){
-            in.buf[in_idx] += out.buf[in_idx << shift_amount];
-          }
-        }
-        */
         c = c->next;
       }
     }
