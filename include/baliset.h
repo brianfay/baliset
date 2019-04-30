@@ -110,14 +110,16 @@ void destroy_outlets(node *n);
 
 void add_node(patch *p, node *n);
 
-void remove_node(patch *p, unsigned int id);
+void remove_node(patch *p, node *n);//doesn't actually free the memory, hang on to that pointer!
 
 node *get_node(const patch *p, unsigned int id);
+
+void free_node(node *n);
 
 void free_patch(patch *p);
 
 //TODO error handling
-void blst_connect(const patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
 
 void blst_disconnect(patch *p, unsigned int out_node_id,
