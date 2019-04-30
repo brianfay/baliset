@@ -96,7 +96,9 @@ typedef struct patch {
   TinyPipe consumer_pipe, producer_pipe;
 } patch;
 
-node *new_node(const patch *p, int num_inlets, int num_outlets);
+node *new_node(const patch *p, const char *type);
+
+node *init_node(const patch *p, int num_inlets, int num_outlets);
 
 void init_inlet(node *n, int idx, char *name, float default_val);
 
@@ -129,7 +131,7 @@ void sort_patch(patch *p);
 
 void process_patch(patch *p);
 
-void set_control(node *n, char *ctl_name, float val);
+void set_control(node *n, int ctl_id, float val);
 
 //deffo want a limiter on dac eventually
 //dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in patch struct

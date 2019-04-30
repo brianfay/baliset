@@ -63,7 +63,7 @@ void destroy_looper(struct node *self) {
 }
 
 node *new_looper(const patch *p) {
-  node *n = new_node(p, 2, 1);
+  node *n = init_node(p, 2, 1);
   n->data = new_looper_data(p);
   n->process = &process_looper;
   n->destroy = &destroy_looper;

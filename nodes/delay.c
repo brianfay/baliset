@@ -60,7 +60,7 @@ delay_data *new_delay_data(const patch *p){
 }
 
 node *new_delay(const patch *p) {
-  node *n = new_node(p, 3, 1);
+  node *n = init_node(p, 3, 1);
   n->data = new_delay_data(p);
   n->process = &process_delay;
   n->destroy = &destroy_delay;

@@ -1,7 +1,7 @@
 #include "baliset.h"
 
 node *new_adc(const patch *p) {
-  node *n = new_node(p, 0, 0);
+  node *n = init_node(p, 0, 0);
   n->process = &no_op;
   n->destroy = &no_op;
   n->num_outlets = p->audio_opts.hw_out_channels;

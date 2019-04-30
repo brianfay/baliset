@@ -15,7 +15,7 @@ void destroy_mul(struct node *self) {
 }
 
 node *new_mul(const patch *p) {
-  node *n = new_node(p, 2, 1);
+  node *n = init_node(p, 2, 1);
   n->process = &process_mul;
   n->destroy = &destroy_mul;
   init_inlet(n, 0, "a", 0.0);

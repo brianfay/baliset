@@ -11,6 +11,7 @@ enum rt_msg_type {
   DELETE_NODE,
   CONNECT,
   DISCONNECT,
+  CONTROL,
 };
 
 enum non_rt_msg_type {
@@ -24,6 +25,12 @@ struct add_msg {
 
 struct delete_msg {
   int32_t node_id;
+};
+
+struct control_msg {
+  int32_t node_id;
+  int32_t ctl_id;
+  float val;
 };
 
 struct connect_msg {
@@ -54,6 +61,7 @@ struct rt_msg {
     struct delete_msg delete_msg;
     struct connect_msg connect_msg;
     struct disconnect_msg disconnect_msg;
+    struct control_msg control_msg;
   };
 };
 
@@ -109,17 +117,6 @@ void destroy_outlets(node *n) {
 /*   return -1; */
 /* } */
 
-//TODO destroy_controls once I figure out what a control is
-/*
-node_list_elem *new_node_list_elem() {
-  node_list_elem *elem = malloc(sizeof(node_list_elem));
-  elem->prev = NULL;
-  elem->next = NULL;
-  elem->node = NULL;
-  return elem;
-}
-*/
-
 void free_node_list(node *n) {
   node *tmp;
   while (n) {
@@ -135,7 +132,6 @@ void free_node_list(node *n) {
 void add_node(patch *p, node *n) {
   n->id = p->next_id++;
   p->num_nodes++;
-
   unsigned int idx = n->id % TABLE_SIZE;
 
   //add to table
@@ -176,7 +172,7 @@ void free_node_table(node_table table) {
   free(table);
 }
 
-node *new_node(const patch *p, int num_inlets, int num_outlets){
+node *init_node(const patch *p, int num_inlets, int num_outlets){
   assert(num_inlets >= 0);
   assert(num_outlets >= 0);
   node *n = malloc(sizeof(node));
@@ -206,6 +202,34 @@ node *new_node(const patch *p, int num_inlets, int num_outlets){
   return n;
 }
 
+node *new_node(const patch *p, const char *type) {
+  //would love to not need this function but the alternative I can think involves dynamic libs and sounds painful
+  if(strcmp(type, "sin") == 0) {
+    return new_sin_osc(p);
+  }
+  if(strcmp(type, "adc") == 0) {
+    return new_adc(p);
+  }
+  if(strcmp(type, "dac") == 0) {
+    return new_dac(p);
+  }
+  if(strcmp(type, "delay") == 0) {
+    return new_delay(p);
+  }
+  if(strcmp(type, "mul") == 0) {
+    return new_mul(p);
+  }
+  if(strcmp(type, "looper") == 0) {
+    return new_looper(p);
+  }
+  #ifdef BELA
+  if(strcmp(type, "digiread") == 0) {
+    return new_digiread(p);
+  }
+  #endif
+  return NULL;
+}
+
 //void destroy_node
 
 void init_inlet(node *n, int idx, char *name, float default_val){
@@ -229,7 +253,7 @@ patch *new_patch(audio_options audio_opts) {
   p->num_nodes = 0;
   p->next_id = 0;
   p->audio_opts = audio_opts;
-
+  p->order.top = -1;
   p->hw_inlets = malloc(sizeof(inlet) * audio_opts.hw_out_channels);
   for(int i = 0; i < audio_opts.hw_out_channels; i++){
     char *name = malloc(2);
@@ -463,6 +487,11 @@ void zero_all_inlets(const patch *p) {
   }
 }
 
+void set_control(node *n, int ctl_id, float val) {
+  inlet *in = &n->inlets[ctl_id];
+  in->val = val;
+}
+
 void handle_rt_msg(patch *p, struct rt_msg *msg) {
   switch(msg->type) {
     case ADD_NODE:
@@ -522,6 +551,9 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
         assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
         break;
       }
+  case CONTROL:
+    set_control(get_node(p, msg->control_msg.node_id), msg->control_msg.ctl_id, msg->control_msg.val);
+    break;
     default:
       printf("handle_rt_msg: unrecognized msg_type\n");//TODO make some kind of exit handler
   }
@@ -560,26 +592,13 @@ void process_patch(patch *p) {
   }
 }
 
-void set_control(node *n, char *ctl_name, float val) {
-  for(int i = 0; i < n->num_inlets; i++) {
-    inlet *in = &n->inlets[i];
-    if(strcmp(in->name, ctl_name) == 0) {
-      in->val = val;
-      return;
-    }
-  }
-}
-
 void no_op(struct node *self) {return;}
 
 void handle_osc_message(patch *p, tosc_message *osc) {
   char *address = tosc_getAddress(osc);
   if(strncmp(address, "/node/add", strlen("/node/add")) == 0) {
     const char *type = tosc_getNextString(osc);
-    node *n = NULL;
-    if(strcmp(type, "sin") == 0){
-      n = new_sin_osc(p);
-    }
+    node *n = new_node(p, type);
     struct add_msg body = {.node = n};
     struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
     assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
@@ -613,6 +632,13 @@ void handle_osc_message(patch *p, tosc_message *osc) {
     int32_t node_id = tosc_getNextInt32(osc);
     struct delete_msg body = {.node_id = node_id};
     struct rt_msg msg = {.type = DELETE_NODE, .delete_msg = body};
+    assert(tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg)) == 1);
+  } else if(strncmp(address, "/node/control", strlen("/node/control")) == 0) {
+    int32_t node_id = tosc_getNextInt32(osc);
+    int32_t ctl_id = tosc_getNextInt32(osc);
+    float val = tosc_getNextFloat(osc);
+    struct control_msg body = {.node_id = node_id, .ctl_id = ctl_id, .val = val};
+    struct rt_msg msg = {.type = CONTROL, .control_msg = body};
     assert(tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg)) == 1);
   } else {
     printf("unexpected message: %s\n", address);

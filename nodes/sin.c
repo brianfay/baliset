@@ -39,7 +39,7 @@ sin_data *new_sin_data(const patch *p){
 }
 
 node *new_sin_osc(const patch *p) {
-  node *n = new_node(p, 2, 1);
+  node *n = init_node(p, 2, 1);
   n->data = new_sin_data(p);
   n->process = &process_sin;
   n->destroy = &destroy_sin;
