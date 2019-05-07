@@ -1,0 +1,5 @@
+{
+  "name": "delay",
+  "inlets": ["in", "delay_time", "feedback"],
+  "outlets": ["out"]
+}

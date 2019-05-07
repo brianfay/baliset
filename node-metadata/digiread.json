@@ -1,0 +1,5 @@
+{
+  "name": "digiread",
+  "platform": "bela",
+  "outlets": ["P9_12", "P9_14", "P9_16"]
+}

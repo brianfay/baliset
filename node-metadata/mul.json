@@ -1,0 +1,5 @@
+{
+  "name": "mul",
+  "inlets": ["a", "b"],
+  "outlets": ["out"]
+}
