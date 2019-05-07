@@ -1,0 +1,7 @@
+^{:css-dirs ["resources/public/css"]
+  ;; :connect-url "localhost:9500"
+  :ring-server-options {:host "192.168.0.104"}
+  ;; :target-dir "resources"
+  ;; :pprint-config true
+  }
+{:main baliset-ui.core}

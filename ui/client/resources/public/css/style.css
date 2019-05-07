@@ -1,0 +1,106 @@
+/* colors sampled from: https://www.worldatlas.com/articles/types-of-sand-dunes.html
+  sky and mountain:
+  #E0EFF2
+  #CFEDF5
+  #BCE7F8
+  #ACDEF7
+  #78AEF4
+  #5E8FD1
+  #375394
+  #395491
+
+  #1B1A0B
+
+  dune light to shade:
+  #F09F45
+  #EB9947
+  #E49946
+  #D17B14
+  #C66D07
+  #B66808
+  #8F4B0A
+  #4F1700
+  #431300
+*/
+
+body {
+    /* background-color: #5E8FD1; */
+    background-color: #1B1E31;
+}
+
+.left-nav {
+    height: 100%;
+    background-color: #000;
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    color: #FFF;
+    opacity: 0.7;
+}
+
+.add-btn {
+    user-select: none;
+    background-color: #5B6976;
+    border: solid 1px;
+    text-align: left;
+    padding: 8px;
+    margin: 8px;
+}
+
+.node {
+    display: flex;
+    flex-direction: column;
+}
+
+.node-header {
+    background-color: #DCB78B;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 56px;
+}
+
+/* #E79434 */
+.node-io {
+    display: flex;
+    flex-direction: row;
+}
+
+.inlet {
+    display: flex;
+    flex: 1;
+    border-top: solid 1px;
+    background-color: #91654A;
+    border-color: #444;
+    padding: 8px;
+    min-width: 24px;
+    min-height: 24px;
+    justify-content: right;
+    align-items: center;
+}
+
+.outlet {
+    display: flex;
+    flex: 1;
+    background-color: #B3895F;;
+    border-top: solid 1px;
+    border-color: #444;
+    padding: 8px;
+    min-width: 24px;
+    min-height: 24px;
+    justify-content: center;
+    align-items: center;
+}
+
+.inlets {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.outlets {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+}
