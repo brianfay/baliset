@@ -185,6 +185,7 @@ node *init_node(const patch *p, int num_inlets, int num_outlets){
     in->buf = calloc(p->audio_opts.buf_size, sizeof(float));
     in->buf_size = p->audio_opts.buf_size;
     in->num_connections = 0;
+    in->connections = NULL;
   }
 
   n->num_outlets = num_outlets;
