@@ -23,9 +23,27 @@
   #431300
 */
 
+html, body, #app {
+    height: 100%;
+    width: 100%;
+}
+
 body {
     /* background-color: #5E8FD1; */
     background-color: #1B1E31;
+    font-family: monospace;
+}
+
+.canvas {
+    height: 0px;
+    width: 0px;
+    overflow: visible;
+}
+
+.app {
+    width: 100%;
+    height: 100%;
+    /* overflow: hidden; */
 }
 
 .left-nav {

@@ -5,14 +5,16 @@
             [baliset-ui.views :as v]
             [baliset-ui.db :as db]
             [baliset-ui.events :as events]
+            [baliset-ui.websocket :as ws]
             [baliset-ui.subs :as subs]))
 
 (enable-console-print!)
 
 (defn ^:export main
   []
+  (ws/connect)
   (rf/dispatch [:request-node-metadata])
-  (reagent/render v/app
+  (reagent/render [v/app]
                   (.getElementById js/document "app")))
 
 (defn ^:after-load reload []
