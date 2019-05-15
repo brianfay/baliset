@@ -56,6 +56,7 @@ delay_data *new_delay_data(const patch *p){
   data->sample_rate = p->audio_opts.sample_rate;
   data->delay_line_size = data->sample_rate * data->max_delay_seconds;
   data->delay_line = calloc(data->delay_line_size, sizeof(float));
+  data->write_head = 0;
   return data;
 }
 
