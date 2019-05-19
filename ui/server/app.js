@@ -30,7 +30,7 @@ app.listen(web_port, function () {return console.log("express listening on " + w
 const wss = new WebSocket.Server({port: websocket_port});
 
 wss.broadcast = function broadcast(data) {
-  console.log(`broadcasting: ${JSON.stringify(data)}`);
+  //console.log(`broadcasting: ${JSON.stringify(data)}`);
   wss.clients.forEach(function each(client) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(data));
@@ -94,5 +94,7 @@ wss.on("connection", function connection(ws) {
   ws.on("close", function close(){
     console.log("disconnected.");
   })
-  ws.send(JSON.stringify({"route": "/nodes", "nodes": baliset_state.getNodes()}));
+  ws.send(JSON.stringify({"route": "/app_state",
+                          "nodes": baliset_state.getNodes(),
+                          "connections": baliset_state.getConnections()}));
 });

@@ -120,6 +120,10 @@ body {
     background-color: #abc;
 }
 
+.selected-add-btn {
+    background-color: #3C3;
+}
+
 .inlets {
     display: flex;
     flex-grow: 1;

@@ -38,10 +38,16 @@ rf/subscribe
        [0 0])))
 
 (rf/reg-sub
- :selected?
+ :selected-io?
  (fn [db [_ inlet-or-outlet node-id inlet-idx]]
    (= (:selected-io db)
       [inlet-or-outlet node-id inlet-idx])))
+
+(rf/reg-sub
+ :selected-add-btn?
+ (fn [db [_ node-name]]
+   (= (:selected-add-btn db)
+      node-name)))
 
 (rf/reg-sub
  :node-position

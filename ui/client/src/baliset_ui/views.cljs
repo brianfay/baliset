@@ -25,19 +25,23 @@
 
 (defn inlet
   [node-id idx name]
-  (let [selected? @(rf/subscribe [:selected? :inlet node-id idx])]
+  (let [selected? @(rf/subscribe [:selected-io? :inlet node-id idx])]
     [(if selected? :div.inlet.selected-inlet :div.inlet)
      {:ref (fn [this]
              (if this
                (rf/dispatch [:reg-inlet-offset node-id idx (.-offsetTop this) (.-offsetHeight this)])
                (rf/dispatch [:unreg-inlet-offset node-id idx])))
-      :on-click (fn [e] (rf/dispatch [:clicked-inlet node-id idx]))}
+      :on-click (fn [e]
+                  (.stopPropagation e)
+                  (rf/dispatch [:clicked-inlet node-id idx]))}
      name]))
 
 (defn outlet [node-id idx name]
-  (let [selected? @(rf/subscribe [:selected? :outlet node-id idx])]
+  (let [selected? @(rf/subscribe [:selected-io? :outlet node-id idx])]
     [(if selected? :div.outlet.selected-outlet :div.outlet)
-     {:on-click (fn [e] (rf/dispatch [:clicked-outlet node-id idx]))
+     {:on-click (fn [e]
+                  (.stopPropagation e)
+                  (rf/dispatch [:clicked-outlet node-id idx]))
       :ref (fn [this]
              (if this
                (rf/dispatch [:reg-outlet-offset node-id idx
@@ -110,11 +114,13 @@
           node-ids)]))
 
 (defn add-btn [node-name]
-  [:div.add-btn
+  [(if @(rf/subscribe [:selected-add-btn? node-name])
+     :div.add-btn.selected-add-btn
+     :div.add-btn)
    {:on-click
     (fn [e]
       (.stopPropagation e)
-      (rf/dispatch [:add-node node-name]))}
+      (rf/dispatch [:clicked-add-btn node-name]))}
    (str node-name)])
 
 (defn left-nav []
@@ -169,7 +175,9 @@
 
       :reagent-render
       (fn []
-        [:div.app
+        [:div.app {:on-click #(rf/dispatch [:clicked-app-div
+                                            (.-clientX (.-nativeEvent %))
+                                            (.-clientY (.-nativeEvent %))])}
          [left-nav]
          [canvas]])})))
 

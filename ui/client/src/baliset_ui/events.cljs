@@ -34,13 +34,15 @@
      (assoc db :node-metadata node-map))))
 
 (rf/reg-event-db
- :load-nodes
+ :app-state
  (fn [db [_ resp]]
-   (assoc db :nodes
-     (reduce-kv
-      (fn [m k v] (assoc m (int (name k)) v))
-      {}
-      (js->clj (.-nodes resp) :keywordize-keys true)))))
+   (-> db
+       (assoc :nodes
+              (reduce-kv
+               (fn [m k v] (assoc m (int (name k)) v))
+               {}
+               (js->clj (.-nodes resp) :keywordize-keys true)))
+       (update :connections into (js->clj (.-connections resp))))))
 
 (rf/reg-event-db
  :node-metadata-failure ;;TODO
@@ -67,11 +69,12 @@
  (fn [db [_ node-id idx]]
    (update-in db [:outlet-offset node-id] dissoc idx)))
 
-(rf/reg-event-fx
- :clicked-add-node
- (fn [cofx [_ node-type x y]]
-   {;;TODO - optimistic update :db
-    :ws-add-node [node-type x y]}))
+(rf/reg-event-db
+ :clicked-add-btn
+ (fn [db [_ node-name]]
+   (if (= (:selected-add-btn db) node-name)
+     (assoc db :selected-add-btn nil)
+     (assoc db :selected-add-btn node-name))))
 
 ;;cases
 ;;nothing selected
@@ -105,10 +108,11 @@
 
              :default
              (assoc db :selected-io [:inlet node-id inlet-idx]))}
-      (when connecting?
-        {:ws-connect [out-node-id outlet-idx node-id inlet-idx]})
-      (when already-connected?
-        {:ws-disconnect [out-node-id outlet-idx node-id inlet-idx]})))))
+      (cond already-connected?
+            {:ws-disconnect [out-node-id outlet-idx node-id inlet-idx]}
+
+            connecting?
+            {:ws-connect [out-node-id outlet-idx node-id inlet-idx]})))))
 
 (rf/reg-event-fx
  :clicked-outlet
@@ -128,10 +132,22 @@
 
                    :default
                    (assoc db :selected-io [:outlet node-id outlet-idx]))}
-            (when connecting?
-              {:ws-connect [node-id outlet-idx in-node-id inlet-idx]})
-            (when already-connected?
-              {:ws-disconnect [node-id outlet-idx in-node-id inlet-idx]})))))
+            (cond already-connected?
+                  {:ws-disconnect [node-id outlet-idx in-node-id inlet-idx]}
+
+                  connecting?
+                  {:ws-connect [node-id outlet-idx in-node-id inlet-idx]})))))
+
+(rf/reg-event-fx
+ :clicked-app-div
+ (fn [{:keys [db]} [_ x y]]
+   (let [[pan-x pan-y] (mapv + (:pan db) (:pan-offset db))]
+     (merge {}
+            (cond (:selected-add-btn db)
+                  {:ws-add-node [(:selected-add-btn db) (- x pan-x) (- y pan-y)]}
+
+                  :default
+                  {:db (assoc db :selected-io nil)})))))
 
 
 (rf/reg-event-db

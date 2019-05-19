@@ -7,10 +7,9 @@
 
 (defn handle-message [e]
   (let [msg (.parse js/JSON (.-data e))]
-    (def msg msg)
     (case (.-route msg)
-      "/nodes"
-      (rf/dispatch [:load-nodes msg])
+      "/app_state"
+      (rf/dispatch [:app-state msg])
       "/node/added"
       (rf/dispatch [:db-add-node (.-node_id msg) (.-type msg) (.-x msg) (.-y msg)])
       "/node/connected"
@@ -19,8 +18,8 @@
       "/node/disconnected"
       (rf/dispatch [:db-disconnect-node (.-out_node_id msg) (.-outlet_idx msg)
                     (.-in_node_id msg) (.-inlet_idx msg)])
-      "/node/move"
-      (rf/dispatch [:move-node (keyword (.-node_id msg)) (.-x msg) (.-y msg)])
+      "/node/moved"
+      (rf/dispatch [:move-node (.-node_id msg) (.-x msg) (.-y msg)])
       (println "unrecognized msg: " msg))))
 
 (defn connect []
