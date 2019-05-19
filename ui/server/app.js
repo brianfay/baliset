@@ -55,29 +55,32 @@ function messageHandler(ws) {
       return;
     }
     switch(msg.route) {
-    case "/node/add": {
-      const clientMsg = osc_client.addNode(msg);
-      wss.broadcast(clientMsg);
-      break;
-    }
-    case "/node/connect":
-      const clientMsg = osc_client.connectNode(msg);
-      wss.broadcast(clientMsg);
-      break;
-    case "/node/disconnect":
-      osc_client.disconnectNode(msg);
-      break;
-    case "/node/delete":
-      osc_client.deleteNode(msg);
-      break;
-    case "/node/move": {
-      const clientMsg = baliset_state.moveNode(msg);
-      wss.notifyOtherClients(ws, clientMsg);
-      break;
-    }
-    default:
-      console.log(`unrecognized websocket msg: ${msg.route}`);
-    }
+      case "/node/add": {
+        const clientMsg = osc_client.addNode(msg);
+        wss.broadcast(clientMsg);
+        break;
+      }
+      case "/node/connect": {
+        const clientMsg = osc_client.connectNode(msg);
+        wss.broadcast(clientMsg);
+        break;
+      }
+      case "/node/disconnect": {
+        const clientMsg = osc_client.disconnectNode(msg);
+        wss.broadcast(clientMsg);
+        break;
+      }
+      case "/node/delete":
+        osc_client.deleteNode(msg);
+        break;
+      case "/node/move": {
+        const clientMsg = baliset_state.moveNode(msg);
+        wss.notifyOtherClients(ws, clientMsg);
+        break;
+      }
+      default:
+        console.log(`unrecognized websocket msg: ${msg.route}`);
+      }
   }
  return handler;
 }

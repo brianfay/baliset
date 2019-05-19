@@ -16,6 +16,9 @@
       "/node/connected"
       (rf/dispatch [:db-connect-node (.-out_node_id msg) (.-outlet_idx msg)
                     (.-in_node_id msg) (.-inlet_idx msg)])
+      "/node/disconnected"
+      (rf/dispatch [:db-disconnect-node (.-out_node_id msg) (.-outlet_idx msg)
+                    (.-in_node_id msg) (.-inlet_idx msg)])
       "/node/move"
       (rf/dispatch [:move-node (keyword (.-node_id msg)) (.-x msg) (.-y msg)])
       (println "unrecognized msg: " msg))))
@@ -44,6 +47,15 @@
  :ws-connect
  (fn [[out-node-id outlet-idx in-node-id inlet-idx]]
    (.send @sock (.stringify js/JSON #js {:route "/node/connect"
+                                         :out_node_id out-node-id
+                                         :outlet_idx outlet-idx
+                                         :in_node_id in-node-id
+                                         :inlet_idx inlet-idx}))))
+
+(rf/reg-fx
+ :ws-disconnect
+ (fn [[out-node-id outlet-idx in-node-id inlet-idx]]
+   (.send @sock (.stringify js/JSON #js {:route "/node/disconnect"
                                          :out_node_id out-node-id
                                          :outlet_idx outlet-idx
                                          :in_node_id in-node-id

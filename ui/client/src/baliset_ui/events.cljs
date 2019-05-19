@@ -90,36 +90,48 @@
  :clicked-inlet
  (fn [{:keys [db]} [_ node-id inlet-idx]]
    (let [selected-io (:selected-io db)
-         connecting? (and (= (first selected-io) :outlet) (not= node-id (second selected-io)))]
+         [in-or-out out-node-id outlet-idx] selected-io
+         connecting? (and (= in-or-out :outlet) (not= node-id out-node-id))
+         already-connected? (and connecting?
+                                 (contains? (:connections db)
+                                            [out-node-id outlet-idx node-id inlet-idx]))]
      (merge
       {:db (cond
              (= selected-io [:inlet node-id inlet-idx])
              (assoc db :selected-io nil)
 
-             connecting?
+             (or already-connected? connecting?)
              db
 
              :default
              (assoc db :selected-io [:inlet node-id inlet-idx]))}
-       (when connecting?
-         {:ws-connect [(nth selected-io 1) (nth selected-io 2) node-id inlet-idx]})))))
+      (when connecting?
+        {:ws-connect [out-node-id outlet-idx node-id inlet-idx]})
+      (when already-connected?
+        {:ws-disconnect [out-node-id outlet-idx node-id inlet-idx]})))))
 
 (rf/reg-event-fx
  :clicked-outlet
  (fn [{:keys [db]} [_ node-id outlet-idx]]
    (let [selected-io (:selected-io db)
-         connecting? (and (= (first selected-io) :inlet) (not= node-id (second selected-io)))]
+         [in-or-out in-node-id inlet-idx] selected-io
+         connecting? (and (= in-or-out :inlet) (not= node-id in-node-id))
+         already-connected? (and connecting?
+                                 (contains? (:connections db)
+                                            [node-id outlet-idx in-node-id inlet-idx]))]
      (merge {:db (cond
                    (= selected-io [:outlet node-id outlet-idx])
                    (assoc db :selected-io nil)
 
-                   connecting?
+                   (or already-connected? connecting?)
                    db
 
                    :default
                    (assoc db :selected-io [:outlet node-id outlet-idx]))}
             (when connecting?
-              {:ws-connect [node-id outlet-idx (nth selected-io 1) (nth selected-io 2)]})))))
+              {:ws-connect [node-id outlet-idx in-node-id inlet-idx]})
+            (when already-connected?
+              {:ws-disconnect [node-id outlet-idx in-node-id inlet-idx]})))))
 
 
 (rf/reg-event-db
@@ -131,6 +143,11 @@
  :db-connect-node
  (fn [db [_ out-node-id outlet-idx in-node-id inlet-idx]]
    (update db :connections cset/union #{[out-node-id outlet-idx in-node-id inlet-idx]})))
+
+(rf/reg-event-db
+ :db-disconnect-node
+ (fn [db [_ out-node-id outlet-idx in-node-id inlet-idx]]
+   (update db :connections disj [out-node-id outlet-idx in-node-id inlet-idx])))
 
 (rf/reg-event-fx
  :request-node-metadata

@@ -45,11 +45,13 @@ exports.connectNode = function(msg) {
 exports.disconnectNode = function(msg) {
   const oscMsg = {address: '/node/disconnect',
                   args: [{type: "integer", value: msg.out_node_id},
-                         {type: "integer", value: msg.outlet_idxx},
+                         {type: "integer", value: msg.outlet_idx},
                          {type: "integer", value: msg.in_node_id},
                          {type: "integer", value: msg.inlet_idx}]};
   const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
+  return {"route": "/node/disconnected", "out_node_id": msg.out_node_id,
+          "outlet_idx": msg.outlet_idx, "in_node_id": msg.in_node_id, "inlet_idx": msg.inlet_idx};
 }
 
 exports.deleteNode = function(msg) {
