@@ -1,5 +1,5 @@
 #include "io.h"
-/* #include "portaudio.h" */
+#include "portaudio.h"
 
 void error();
 
