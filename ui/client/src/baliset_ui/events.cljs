@@ -1,18 +1,26 @@
 (ns baliset-ui.events
   (:require [re-frame.core :as rf]
-            [ajax.core :as ajax]))
+            [ajax.core :as ajax]
+            [clojure.set :as cset]))
 
 (defn local-route [route]
   ;; (str (.-location js/window) route)
-  (str "http://192.168.0.104:3001/" route))
+  (str "http://192.168.0.104:3001/" route)
+  ;; (str "http://localhost:3001/" route)
+  )
 
 (rf/reg-event-db
  :initialize-db
  (fn [db _]
    (assoc db :node-metadata {}
+             :connections #{}
              :nodes {}
+             :node-offset {}
              :pan [0 0]
-             :pan-offset [0 0])))
+             :pan-offset [0 0]
+             :inlet-offset {}
+             :outlet-offset {}
+             :selected-io nil)))
 
 (defonce db-init (rf/dispatch-sync [:initialize-db]))
 
@@ -28,17 +36,36 @@
 (rf/reg-event-db
  :load-nodes
  (fn [db [_ resp]]
-   (assoc db :nodes (js->clj (.-nodes resp) :keywordize-keys true))))
-
-(comment
-  (js->clj (.-nodes res) :keywordize-keys true)
-  (:nodes db)
-  )
+   (assoc db :nodes
+     (reduce-kv
+      (fn [m k v] (assoc m (int (name k)) v))
+      {}
+      (js->clj (.-nodes resp) :keywordize-keys true)))))
 
 (rf/reg-event-db
- :todo
+ :node-metadata-failure ;;TODO
  (fn [db [_ result]]
    db))
+
+(rf/reg-event-db
+ :reg-inlet-offset
+ (fn [db [_ node-id idx offset-top offset-height]]
+   (assoc-in db [:inlet-offset node-id idx] [offset-top offset-height])))
+
+(rf/reg-event-db
+ :unreg-inlet-offset
+ (fn [db [_ node-id idx]]
+   (update-in db [:inlet-offset node-id] dissoc idx)))
+
+(rf/reg-event-db
+ :reg-outlet-offset
+ (fn [db [_ node-id idx offset-top offset-height offset-left offset-width]]
+   (assoc-in db [:outlet-offset node-id idx] [offset-top offset-height offset-left offset-width])))
+
+(rf/reg-event-db
+ :unreg-outlet-offset
+ (fn [db [_ node-id idx]]
+   (update-in db [:outlet-offset node-id] dissoc idx)))
 
 (rf/reg-event-fx
  :clicked-add-node
@@ -46,10 +73,64 @@
    {;;TODO - optimistic update :db
     :ws-add-node [node-type x y]}))
 
+;;cases
+;;nothing selected
+;; select inlet
+;;inlet already selected
+;; unselect
+;;other inlet selected
+;; select inlet
+;;outlet already selected
+;;  node id is same
+;;    select inlet
+;;  node id is different
+;;    connect (but ideally check for cycles, maybe indicate with colors)
+
+(rf/reg-event-fx
+ :clicked-inlet
+ (fn [{:keys [db]} [_ node-id inlet-idx]]
+   (let [selected-io (:selected-io db)
+         connecting? (and (= (first selected-io) :outlet) (not= node-id (second selected-io)))]
+     (merge
+      {:db (cond
+             (= selected-io [:inlet node-id inlet-idx])
+             (assoc db :selected-io nil)
+
+             connecting?
+             db
+
+             :default
+             (assoc db :selected-io [:inlet node-id inlet-idx]))}
+       (when connecting?
+         {:ws-connect [(nth selected-io 1) (nth selected-io 2) node-id inlet-idx]})))))
+
+(rf/reg-event-fx
+ :clicked-outlet
+ (fn [{:keys [db]} [_ node-id outlet-idx]]
+   (let [selected-io (:selected-io db)
+         connecting? (and (= (first selected-io) :inlet) (not= node-id (second selected-io)))]
+     (merge {:db (cond
+                   (= selected-io [:outlet node-id outlet-idx])
+                   (assoc db :selected-io nil)
+
+                   connecting?
+                   db
+
+                   :default
+                   (assoc db :selected-io [:outlet node-id outlet-idx]))}
+            (when connecting?
+              {:ws-connect [node-id outlet-idx (nth selected-io 1) (nth selected-io 2)]})))))
+
+
 (rf/reg-event-db
  :db-add-node
  (fn [db [_ node-id node-type x y]]
    (assoc-in db [:nodes node-id] {:type node-type :x x :y y})))
+
+(rf/reg-event-db
+ :db-connect-node
+ (fn [db [_ out-node-id outlet-idx in-node-id inlet-idx]]
+   (update db :connections cset/union #{[out-node-id outlet-idx in-node-id inlet-idx]})))
 
 (rf/reg-event-fx
  :request-node-metadata
@@ -57,7 +138,7 @@
    {:http-xhrio {:method :get
                  :uri (local-route "node_metadata")
                  :response-format (ajax/json-response-format {:keywords? false})
-                 :on-failure [:todo] ;;TODO
+                 :on-failure [:node-metadata-failure]
                  :on-success [:load-node-metadata]}}))
 
 ;;TODO velocity based panning?

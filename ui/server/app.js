@@ -48,7 +48,7 @@ wss.notifyOtherClients = function(ws, data) {
 }
 
 function messageHandler(ws) {
-  let handler = function(msg) {
+  const handler = function(msg) {
     msg = JSON.parse(msg);
     if(msg.route === undefined) {
       console.log(`expected message to be a json array containing a route parameter, got ${msg}`);
@@ -61,7 +61,8 @@ function messageHandler(ws) {
       break;
     }
     case "/node/connect":
-      osc_client.connectNode(msg);
+      const clientMsg = osc_client.connectNode(msg);
+      wss.broadcast(clientMsg);
       break;
     case "/node/disconnect":
       osc_client.disconnectNode(msg);

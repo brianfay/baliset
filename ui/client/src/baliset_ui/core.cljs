@@ -3,7 +3,6 @@
             [re-frame.core :as rf]
             [day8.re-frame.http-fx]
             [baliset-ui.views :as v]
-            [baliset-ui.db :as db]
             [baliset-ui.events :as events]
             [baliset-ui.websocket :as ws]
             [baliset-ui.subs :as subs]))

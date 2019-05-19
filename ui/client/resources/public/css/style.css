@@ -24,6 +24,7 @@
 */
 
 html, body, #app {
+    overflow: hidden;
     height: 100%;
     width: 100%;
 }
@@ -98,10 +99,14 @@ body {
     align-items: center;
 }
 
+.selected-inlet {
+    background-color: #abc;
+}
+
 .outlet {
     display: flex;
     flex: 1;
-    background-color: #B3895F;;
+    background-color: #B3895F;
     border-top: solid 1px;
     border-color: #444;
     padding: 8px;
@@ -109,6 +114,10 @@ body {
     min-height: 24px;
     justify-content: center;
     align-items: center;
+}
+
+.selected-outlet {
+    background-color: #abc;
 }
 
 .inlets {
@@ -122,3 +131,20 @@ body {
     flex-grow: 1;
     flex-direction: column;
 }
+
+svg {
+    position: relative;
+    overflow: visible;
+    pointer-events: none;
+}
+
+path {
+    stroke: #888;
+    stroke-width: 1;
+    fill: transparent;
+    stroke-dasharray: 4;
+    stroke-dashoffset: -32;
+    animation: dash 3s linear infinite;
+}
+
+@keyframes dash { to { stroke-dashoffset: 0;}}

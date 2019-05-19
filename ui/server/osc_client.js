@@ -22,44 +22,46 @@ baliset_sock.on("error", function(err) {
 
 exports.addNode = function(msg) {
   console.log(`adding node: ${msg.type}`);
-  let oscMsg = {address: '/node/add',
-                args: [msg.type]};
-  let buf = osc.toBuffer(oscMsg);
+  const oscMsg = {address: '/node/add',
+                  args: [msg.type]};
+  const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
-  let node_id = baliset_state.addNode(msg);
+  const node_id = baliset_state.addNode(msg);
   return {"route": "/node/added", "type": msg.type, "node_id": node_id, "x": msg.x, "y": msg.y};
 }
 
 exports.connectNode = function(msg) {
-  let oscMsg = {address: '/node/connect', 
-                args: [{type: "integer", value: msg.out_node_id},
-                       {type: "integer", value: msg.outlet_id},
-                       {type: "integer", value: msg.in_node_id},
-                       {type: "integer", value: msg.inlet_id}]};
-  let buf = osc.toBuffer(oscMsg);
+  const oscMsg = {address: '/node/connect',
+                  args: [{type: "integer", value: msg.out_node_id},
+                         {type: "integer", value: msg.outlet_idx},
+                         {type: "integer", value: msg.in_node_id},
+                         {type: "integer", value: msg.inlet_idx}]};
+  const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
+  return {"route": "/node/connected", "out_node_id": msg.out_node_id,
+          "outlet_idx": msg.outlet_idx, "in_node_id": msg.in_node_id, "inlet_idx": msg.inlet_idx};
 }
 
 exports.disconnectNode = function(msg) {
-  let oscMsg = {address: '/node/disconnect', 
-                args: [{type: "integer", value: msg.out_node_id},
-                       {type: "integer", value: msg.outlet_id},
-                       {type: "integer", value: msg.in_node_id},
-                       {type: "integer", value: msg.inlet_id}]};
-  let buf = osc.toBuffer(oscMsg);
+  const oscMsg = {address: '/node/disconnect',
+                  args: [{type: "integer", value: msg.out_node_id},
+                         {type: "integer", value: msg.outlet_idxx},
+                         {type: "integer", value: msg.in_node_id},
+                         {type: "integer", value: msg.inlet_idx}]};
+  const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
 }
 
 exports.deleteNode = function(msg) {
-  let oscMsg = {address: '/node/delete', args: [{type: "integer", value: msg.node_id}]};
-  let buf = osc.toBuffer(oscMsg);
+  const oscMsg = {address: '/node/delete', args: [{type: "integer", value: msg.node_id}]};
+  const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
 }
 
 exports.controlNode = function(msg) {
-  let oscMsg = {address: '/node/control', args: [{type: "integer", value: msg.node_id},
-                                                 {type: "integer", value: msg.control_id},
-                                                 {type: "float",   value: msg.value}]};
-  let buf = osc.toBuffer(oscMsg);
+  const oscMsg = {address: '/node/control', args: [{type: "integer", value: msg.node_id},
+                                                   {type: "integer", value: msg.control_id},
+                                                   {type: "float",   value: msg.value}]};
+  const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
 }

@@ -10,8 +10,8 @@ exports.getNodes = () => nodes;
 
 exports.addNode = function(n) {
   let node_id = last_node_id++;
-  nodes[node_id.toString()] = {"type": n.type, "x": n.x, "y": n.y};
-  return node_id.toString();
+  nodes[node_id] = {"type": n.type, "x": n.x, "y": n.y};
+  return node_id;
 }
 
 exports.moveNode = function(msg) {

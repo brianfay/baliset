@@ -3,16 +3,53 @@
             [cljsjs.hammer]
             [reagent.core :as re :refer [create-class]]))
 
-(defn- translate3d [x y z]
-  (str "translate3d(" x "px, " y "px, " z "px)"))
+(defn- translate [x y]
+  (str "translate(" x "px, " y "px"))
 
-(defn inlet [name]
-  [:div.inlet name])
+(defn connection
+  "A bezier curve representing a connection between an inlet and an outlet"
+  [c]
+  (let [[out-x out-y cx1 cy1 cx2 cy2 in-x in-y] @(rf/subscribe [:connection c])]
+    [:path {:d (str "M" in-x " " in-y " "
+                    "C" cx1 " " cy1 " "
+                    cx2 " " cy2 " "
+                    out-x " " out-y)}]))
 
-(defn outlet [name]
-  [:div.outlet name])
+(defn connections
+  "An svg element containing lines that represent connections between inlets and outlets."
+  []
+  [:svg [:g
+         (for [c @(rf/subscribe [:connections])]
+           ^{:key (str "connection:" c)}
+           [connection c])]])
+
+(defn inlet
+  [node-id idx name]
+  (let [selected? @(rf/subscribe [:selected? :inlet node-id idx])]
+    [(if selected? :div.inlet.selected-inlet :div.inlet)
+     {:ref (fn [this]
+             (if this
+               (rf/dispatch [:reg-inlet-offset node-id idx (.-offsetTop this) (.-offsetHeight this)])
+               (rf/dispatch [:unreg-inlet-offset node-id idx])))
+      :on-click (fn [e] (rf/dispatch [:clicked-inlet node-id idx]))}
+     name]))
+
+(defn outlet [node-id idx name]
+  (let [selected? @(rf/subscribe [:selected? :outlet node-id idx])]
+    [(if selected? :div.outlet.selected-outlet :div.outlet)
+     {:on-click (fn [e] (rf/dispatch [:clicked-outlet node-id idx]))
+      :ref (fn [this]
+             (if this
+               (rf/dispatch [:reg-outlet-offset node-id idx
+                             (.-offsetTop this) (.-offsetHeight this)
+                             (.-offsetLeft this) (.-offsetWidth this)])
+               (rf/dispatch [:unreg-outlet-offset node-id idx])))}
+     name]))
 
 (defn node
+  "A div representing a node. Has a fixed left/top position, but can be dragged around the patch.
+  During the drag events, the position changes via transform: translate. One the drag has stopped,
+  left/top is reset to the new position and the new position is shared with other websocket clients."
   [id]
   (let [touch-state (atom {})]
     (create-class
@@ -44,26 +81,28 @@
       (fn [id]
         (let [node-data @(rf/subscribe [:node id])
               node-meta @(rf/subscribe [:node-metadata (:type node-data)])
-              [off-x off-y] @(rf/subscribe [:node-offset id])]
+              [x y] @(rf/subscribe [:node-position id])]
           [:div.node {:style {:position "fixed"
-                              :left (:x node-data)
-                              :top (:y node-data)
-                              :transform (translate3d off-x off-y 0)}}
+                              :transform (translate x y)}}
            [:div.node-header (get node-meta "name")]
            [:div.node-io
             [:div.inlets
-             (for [in (get node-meta "inlets")]
-               ^{:key (str "inlet-" id "-" in)}
-               [inlet in])]
+             (map-indexed
+              (fn [idx name]
+                ^{:key (str "inlet-" id "-" name)}
+                [inlet id idx name])
+              (get node-meta "inlets"))]
             [:div.outlets
-             (for [out (get node-meta "outlets")]
-               ^{:key (str "outlet-" id out)}
-               [outlet out])]]]))})))
+             (map-indexed
+              (fn [idx name]
+                ^{:key (str "outlet-" id "-" name)}
+                [outlet id idx name])
+              (get node-meta "outlets"))]]]))})))
 
 (defn nodes
+  "Container div for the nodes"
   []
   (let [node-ids @(rf/subscribe [:node-ids])]
-    (def node-ids node-ids)
     [:div
      (map (fn [id]
             ^{:key (str "node:" id)}
@@ -89,13 +128,19 @@
          [add-btn t])
        [:div])]))
 
-(defn canvas []
-  (let [[x y] @(rf/subscribe [:pan])]
+(defn canvas
+  "A zero-sized div that shows its contents via overflow: visible.
+  Using transform: translate on this div allows us to 'move' the patch"
+  []
+  (let [[x y] @(rf/subscribe [:pan-pos])]
     [:div.canvas
-     {:style {:transform (translate3d x y 0)}}
-     [nodes]]))
+     {:style {:transform (translate x y)}}
+     [nodes]
+     [connections]]))
 
-(defn app []
+(defn app
+  "Top-level div, containing all other parts of the app. Sized to the screen dimensions"
+  []
   (let [touch-state (atom {})]
     (create-class
      {:display-name "app"
@@ -110,6 +155,7 @@
                        (do (swap! touch-state assoc :moving true)
                            (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))
 
+                       ;;TODO this panning handles poorly on desktop browser, moves both node and canvas at same time
                        (.-isFinal ev)
                        (do (swap! touch-state assoc :moving false)
                            (rf/dispatch [:finish-pan-camera]))
