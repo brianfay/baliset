@@ -372,7 +372,7 @@ struct disconnect_pair disconnect(const patch *p, int out_node_id, int outlet_id
     if(out_ptr->node_id == in_node_id && out_ptr->io_id == inlet_idx){
       out->num_connections--;
       if(out_ptr == out_prev) {
-        out->connections = NULL; //head
+        out->connections = out_ptr->next; //either the next connection, or NULL if there were none
       } else {
         out_prev->next = out_ptr->next;
       }
@@ -386,7 +386,7 @@ struct disconnect_pair disconnect(const patch *p, int out_node_id, int outlet_id
     if(in_ptr->node_id == out_node_id && in_ptr->io_id == outlet_idx) {
       in->num_connections--;
       if(in_ptr == in_prev) {
-        in->connections = NULL;
+        in->connections = in_ptr->next; //either the next connection, or NULL if there were none
       } else {
         in_prev->next = in_ptr->next;
       }
