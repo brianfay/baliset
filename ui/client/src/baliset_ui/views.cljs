@@ -96,18 +96,20 @@
                          (rf/dispatch [:clicked-node-header id]))}
             (get node-meta "name")]
            [:div.node-io
-            [:div.inlets
-             (map-indexed
-              (fn [idx name]
-                ^{:key (str "inlet-" id "-" name)}
-                [inlet id idx name])
-              (get node-meta "inlets"))]
-            [:div.outlets
-             (map-indexed
-              (fn [idx name]
-                ^{:key (str "outlet-" id "-" name)}
-                [outlet id idx name])
-              (get node-meta "outlets"))]]]))})))
+            (when-let [inlets (get node-meta "inlets")]
+              [:div.inlets
+               (map-indexed
+                (fn [idx name]
+                  ^{:key (str "inlet-" id "-" name)}
+                  [inlet id idx name])
+                inlets)])
+            (when-let [outlets (get node-meta "outlets")]
+              [:div.outlets
+               (map-indexed
+                (fn [idx name]
+                  ^{:key (str "outlet-" id "-" name)}
+                  [outlet id idx name])
+                outlets)])]]))})))
 
 (defn nodes
   "Container div for the nodes"
