@@ -85,10 +85,16 @@
       (fn [id]
         (let [node-data @(rf/subscribe [:node id])
               node-meta @(rf/subscribe [:node-metadata (:type node-data)])
+              recently-interacted? @(rf/subscribe [:recently-interacted-node? id])
               [x y] @(rf/subscribe [:node-position id])]
           [:div.node {:style {:position "fixed"
-                              :transform (translate x y)}}
-           [:div.node-header (get node-meta "name")]
+                              :transform (translate x y)
+                              :z-index (if recently-interacted? 1 0)}}
+           [:div.node-header
+            {:on-click (fn [e]
+                         (.stopPropagation e)
+                         (rf/dispatch [:clicked-node-header id]))}
+            (get node-meta "name")]
            [:div.node-io
             [:div.inlets
              (map-indexed
@@ -123,16 +129,45 @@
       (rf/dispatch [:clicked-add-btn node-name]))}
    (str node-name)])
 
-(defn left-nav []
+(defn minimized-left-nav []
+  [:div.minimized-left-nav
+   {:on-click #(rf/dispatch [:clicked-minimized-left-nav])}
+   [:svg [:g
+          [:line {:x1 0 :y1 4 :x2 24 :y2 4}]
+          [:line {:x1 0 :y1 10 :x2 24 :y2 10}]
+          [:line {:x1 0 :y1 16 :x2 24 :y2 16}]]]])
+
+(defn expanded-left-nav []
   (let [node-types @(rf/subscribe [:node-types])]
     [:div.left-nav
-     [:h1 "baliset"]
-     [:h2 "add-node"]
+     {:on-click #(rf/dispatch [:clicked-expanded-left-nav])}
      (if node-types
        (for [t node-types]
          ^{:key (str "add-btn-" t)}
          [add-btn t])
        [:div])]))
+
+(defn left-nav []
+  (if @(rf/subscribe [:left-nav-expanded?])
+    [expanded-left-nav]
+    [minimized-left-nav]))
+
+(defn delete-node-btn []
+  [:div.delete-btn
+   {:on-click (fn [e]
+                (.stopPropagation e)
+                (rf/dispatch [:clicked-delete-node-btn]))}
+   "DELETE"])
+
+(defn node-panel []
+  (if-let [node-info @(rf/subscribe [:selected-node])]
+    [:div.node-panel
+     (str node-info)
+     [delete-node-btn]]
+    [:div])
+
+  )
+
 
 (defn canvas
   "A zero-sized div that shows its contents via overflow: visible.
@@ -179,6 +214,7 @@
                                             (.-clientX (.-nativeEvent %))
                                             (.-clientY (.-nativeEvent %))])}
          [left-nav]
+         [node-panel]
          [canvas]])})))
 
 ;; (comment

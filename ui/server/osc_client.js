@@ -64,6 +64,8 @@ exports.deleteNode = function(msg) {
   console.log(`sending ${JSON.stringify(oscMsg)}`);
   const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
+  baliset_state.deleteNode(msg);
+  return {"route": "/node/deleted", "node_id": msg.node_id};
 }
 
 exports.controlNode = function(msg) {

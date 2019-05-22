@@ -20,7 +20,9 @@
              :pan-offset [0 0]
              :inlet-offset {}
              :outlet-offset {}
-             :selected-io nil)))
+             :selected-io nil
+             :selected-node nil
+             :left-nav-expanded? false)))
 
 (defonce db-init (rf/dispatch-sync [:initialize-db]))
 
@@ -75,6 +77,16 @@
    (if (= (:selected-add-btn db) node-name)
      (assoc db :selected-add-btn nil)
      (assoc db :selected-add-btn node-name))))
+
+(rf/reg-event-db
+ :clicked-minimized-left-nav
+ (fn [db _]
+   (assoc db :left-nav-expanded? true)))
+
+(rf/reg-event-db
+ :clicked-expanded-left-nav
+ (fn [db _]
+   (assoc db :left-nav-expanded? false)))
 
 ;;cases
 ;;nothing selected
@@ -147,13 +159,25 @@
                   {:ws-add-node [(:selected-add-btn db) (- x pan-x) (- y pan-y)]}
 
                   :default
-                  {:db (assoc db :selected-io nil)})))))
+                  {:db (assoc db
+                              :selected-io nil
+                              :selected-node nil)})))))
 
 
 (rf/reg-event-db
  :db-add-node
  (fn [db [_ node-id node-type x y]]
    (assoc-in db [:nodes node-id] {:type node-type :x x :y y})))
+
+(rf/reg-event-db
+ :db-delete-node
+ (fn [db [_ node-id]]
+   (let [new-connections (set (filter (fn [conn] (and (not= node-id (nth conn 0))
+                                                      (not= node-id (nth conn 2))))
+                                      (:connections db)))]
+     (-> db
+         (update :nodes dissoc node-id)
+         (assoc :connections new-connections)))))
 
 (rf/reg-event-db
  :db-connect-node
@@ -179,7 +203,20 @@
 (rf/reg-event-db
  :drag-node
  (fn [db [_ id x y]]
-   (assoc-in db [:node-offset id] [x y])))
+   (-> db
+       (assoc :recently-interacted-node id)
+       (assoc-in [:node-offset id] [x y]))))
+
+(rf/reg-event-db
+ :clicked-node-header
+ (fn [db [_ id]]
+   (assoc db :selected-node id)))
+
+(rf/reg-event-fx
+ :clicked-delete-node-btn
+ (fn [{:keys [db]} _]
+   {:ws-delete-node [(:selected-node db)]
+    :db (assoc db :selected-node nil)}))
 
 (rf/reg-event-fx
  :finish-drag-node

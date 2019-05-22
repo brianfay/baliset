@@ -16,8 +16,25 @@ exports.addNode = function(n) {
   return node_id;
 }
 
+exports.deleteNode = function(msg) {
+  delete nodes[msg.node_id];
+
+  let outdatedConnections = [];
+
+  connections.filter(conn => (conn[0] != msg.node_id != conn[2] != msg.node_id));
+
+  connections.forEach((conn, idx) => {
+    if(conn[0] == msg.node_id || conn[2] == msg.node_id) {
+      outdatedConnections.push(idx);
+    }
+  });
+
+  for(let i = outdatedConnections.length - 1; i >= 0; i--) {
+    connections.splice(outdatedConnections[i], 1);
+  }
+}
+
 exports.moveNode = function(msg) {
-  console.log(`moving node: ${JSON.stringify(msg)}`);
   let n = nodes[msg.node_id]
   if(nodes[msg.node_id] !== undefined) {
     nodes[msg.node_id].x = msg.x;

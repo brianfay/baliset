@@ -32,10 +32,27 @@ rf/subscribe
    (get (:nodes db) id)))
 
 (rf/reg-sub
+ :selected-node
+ (fn [db _]
+   (when-let [selected-node (:selected-node db)]
+     (assoc (get (:nodes db) selected-node)
+            :id selected-node))))
+
+(rf/reg-sub
  :node-offset
  (fn [db [_ id]]
    (or (get (:node-offset db) id)
        [0 0])))
+
+(rf/reg-sub
+ :recently-interacted-node?
+ (fn [db [_ node-id]]
+   (= (:recently-interacted-node db) node-id)))
+
+(rf/reg-sub
+ :left-nav-expanded?
+ (fn [db _]
+   (:left-nav-expanded? db)))
 
 (rf/reg-sub
  :selected-io?

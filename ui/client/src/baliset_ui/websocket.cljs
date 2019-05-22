@@ -12,6 +12,8 @@
       (rf/dispatch [:app-state msg])
       "/node/added"
       (rf/dispatch [:db-add-node (.-node_id msg) (.-type msg) (.-x msg) (.-y msg)])
+      "/node/deleted"
+      (rf/dispatch [:db-delete-node (.-node_id msg)])
       "/node/connected"
       (rf/dispatch [:db-connect-node (.-out_node_id msg) (.-outlet_idx msg)
                     (.-in_node_id msg) (.-inlet_idx msg)])
@@ -36,6 +38,11 @@
  :ws-add-node
  (fn [[node-type x y]]
    (.send @sock (.stringify js/JSON #js {:route "/node/add" :type node-type :x x :y y}))))
+
+(rf/reg-fx
+ :ws-delete-node
+ (fn [[id]]
+   (.send @sock (.stringify js/JSON #js {:route "/node/delete" :node_id id}))))
 
 (rf/reg-fx
  :ws-move-node

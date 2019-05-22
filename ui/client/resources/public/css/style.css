@@ -51,9 +51,27 @@ body {
     height: 100%;
     background-color: #000;
     position: fixed;
-    z-index: 1;
+    z-index: 2;
     top: 0;
-    left: 0;
+    left: -100px;
+    color: #FFF;
+    opacity: 0.7;
+    animation: nav-slide 0.25s forwards;
+}
+
+@keyframes nav-slide { 100% { left: 0;}}
+
+.minimized-left-nav {
+    position: fixed;
+}
+
+.node-panel {
+    position: fixed;
+    height: 100%;
+    right: 0;
+    top: 0;
+    z-index: 2;
+    background-color: #000;
     color: #FFF;
     opacity: 0.7;
 }
@@ -67,7 +85,18 @@ body {
     margin: 8px;
 }
 
+.delete-btn {
+    user-select: none;
+    background-color: #FF3333;
+    max-width: 128px;
+    border: solid 1px;
+    text-align: left;
+    padding: 8px;
+    margin: 8px;
+}
+
 .node {
+    z-index: 0;
     display: flex;
     flex-direction: column;
 }
@@ -137,6 +166,7 @@ body {
 }
 
 svg {
+    z-index: -1;
     position: relative;
     overflow: visible;
     pointer-events: none;
@@ -149,6 +179,11 @@ path {
     stroke-dasharray: 4;
     stroke-dashoffset: -32;
     animation: dash 3s linear infinite;
+}
+
+line {
+    stroke: #888;
+    stroke-width: 1;
 }
 
 @keyframes dash { to { stroke-dashoffset: 0;}}

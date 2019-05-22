@@ -70,9 +70,11 @@ function messageHandler(ws) {
         wss.broadcast(clientMsg);
         break;
       }
-      case "/node/delete":
-        osc_client.deleteNode(msg);
+      case "/node/delete": {
+        const clientMsg = osc_client.deleteNode(msg);
+        wss.broadcast(clientMsg);
         break;
+      }
       case "/node/move": {
         const clientMsg = baliset_state.moveNode(msg);
         wss.notifyOtherClients(ws, clientMsg);
