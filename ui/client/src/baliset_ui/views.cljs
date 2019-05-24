@@ -50,6 +50,8 @@
                (rf/dispatch [:unreg-outlet-offset node-id idx])))}
      name]))
 
+(defonce pan-lock (atom nil))
+
 (defn node
   "A div representing a node. Has a fixed left/top position, but can be dragged around the patch.
   During the drag events, the position changes via transform: translate. One the drag has stopped,
@@ -65,17 +67,19 @@
           (.add ham-man (new js/Hammer.Pan #js {"event" "pan"}))
           (.on ham-man "pan panstart panend pancancel"
                (fn [ev]
-                 (.stopPropagation (.-srcEvent ev))
-                 (cond (and (= "panstart" (.-type ev)))
-                       (do (swap! touch-state assoc :moving true)
-                           (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)]))
+                 (when-not (= @pan-lock :app)
+                   (cond (and (= "panstart" (.-type ev)) #_(= (.-target ev) dom-node))
+                         (do (swap! touch-state assoc :moving true)
+                             (reset! pan-lock :node)
+                             (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)]))
 
-                       (or (= "panend" (.-type ev)) (= "pancancel" (.-type ev)))
-                       (do (swap! touch-state assoc :moving false)
-                           (rf/dispatch [:finish-drag-node id]))
+                         (and (:moving @touch-state) (.-isFinal ev))
+                         (do (swap! touch-state assoc :moving false)
+                             (reset! pan-lock nil)
+                             (rf/dispatch [:finish-drag-node id]))
 
-                       (:moving @touch-state)
-                       (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)]))))
+                         (:moving @touch-state)
+                         (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)])))))
           (swap! touch-state assoc :ham-man ham-man)))
 
       :component-will-unmount
@@ -194,17 +198,19 @@
           (.add ham-man (new js/Hammer.Pan #js {"event" "pan"}))
           (.on ham-man "pan panstart panend"
                (fn [ev]
-                 (cond (and (= "panstart" (.-type ev)) (= (.-target ev) dom-node))
-                       (do (swap! touch-state assoc :moving true)
-                           (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))
+                 (when-not (= @pan-lock :node)
+                   (cond (and (= "panstart" (.-type ev)) (= (.-target ev) dom-node))
+                         (do (swap! touch-state assoc :moving true)
+                             (reset! pan-lock :app)
+                             (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))
 
-                       ;;TODO this panning handles poorly on desktop browser, moves both node and canvas at same time
-                       (.-isFinal ev)
-                       (do (swap! touch-state assoc :moving false)
-                           (rf/dispatch [:finish-pan-camera]))
+                         (and (:moving @touch-state) (.-isFinal ev))
+                         (do (swap! touch-state assoc :moving false)
+                             (reset! pan-lock nil)
+                             (rf/dispatch [:finish-pan-camera]))
 
-                       (:moving @touch-state)
-                       (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)])))
+                         (:moving @touch-state)
+                         (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))))
                (swap! touch-state assoc :ham-man ham-man))))
 
       :component-will-unmount
