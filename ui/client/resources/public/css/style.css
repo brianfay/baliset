@@ -36,6 +36,9 @@ body {
 }
 
 .canvas {
+    left: 0px;
+    top: 0px;
+    position: fixed;
     height: 0px;
     width: 0px;
     overflow: visible;

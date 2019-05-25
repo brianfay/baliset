@@ -4,7 +4,10 @@
             [reagent.core :as re :refer [create-class]]))
 
 (defn- translate [x y]
-  (str "translate(" x "px, " y "px"))
+  (str "translate(" x "px, " y "px)"))
+
+(defn- scale [x y]
+  (str "scale(" x ", " y ")"))
 
 (defn connection
   "A bezier curve representing a connection between an inlet and an outlet"
@@ -50,7 +53,7 @@
                (rf/dispatch [:unreg-outlet-offset node-id idx])))}
      name]))
 
-(defonce pan-lock (atom nil))
+(defonce touch-lock (atom nil))
 
 (defn node
   "A div representing a node. Has a fixed left/top position, but can be dragged around the patch.
@@ -67,15 +70,15 @@
           (.add ham-man (new js/Hammer.Pan #js {"event" "pan"}))
           (.on ham-man "pan panstart panend pancancel"
                (fn [ev]
-                 (when-not (= @pan-lock :app)
+                 (when (or (nil? @touch-lock) (= @touch-lock :node))
                    (cond (and (= "panstart" (.-type ev)) #_(= (.-target ev) dom-node))
                          (do (swap! touch-state assoc :moving true)
-                             (reset! pan-lock :node)
+                             (reset! touch-lock :node)
                              (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)]))
 
                          (and (:moving @touch-state) (.-isFinal ev))
                          (do (swap! touch-state assoc :moving false)
-                             (reset! pan-lock nil)
+                             (reset! touch-lock nil)
                              (rf/dispatch [:finish-drag-node id]))
 
                          (:moving @touch-state)
@@ -179,9 +182,10 @@
   "A zero-sized div that shows its contents via overflow: visible.
   Using transform: translate on this div allows us to 'move' the patch"
   []
-  (let [[x y] @(rf/subscribe [:pan-pos])]
+  (let [[x y] @(rf/subscribe [:pan-pos])
+        scl @(rf/subscribe [:scale])]
     [:div.canvas
-     {:style {:transform (translate x y)}}
+     {:style {:transform (str (scale scl scl) (translate x y))}}
      [nodes]
      [connections]]))
 
@@ -196,22 +200,37 @@
         (let [dom-node (re/dom-node this)
               ham-man (new js/Hammer.Manager dom-node)]
           (.add ham-man (new js/Hammer.Pan #js {"event" "pan"}))
+          (.add ham-man (new js/Hammer.Pinch #js {"event" "pinch"}))
           (.on ham-man "pan panstart panend"
                (fn [ev]
-                 (when-not (= @pan-lock :node)
+                 (when (or (nil? @touch-lock) (= @touch-lock :pan-app))
                    (cond (and (= "panstart" (.-type ev)) (= (.-target ev) dom-node))
                          (do (swap! touch-state assoc :moving true)
-                             (reset! pan-lock :app)
+                             (reset! touch-lock :pan-app)
                              (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))
 
                          (and (:moving @touch-state) (.-isFinal ev))
                          (do (swap! touch-state assoc :moving false)
-                             (reset! pan-lock nil)
+                             (reset! touch-lock nil)
                              (rf/dispatch [:finish-pan-camera]))
 
                          (:moving @touch-state)
                          (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))))
-               (swap! touch-state assoc :ham-man ham-man))))
+               (swap! touch-state assoc :ham-man ham-man))
+          (.on ham-man "pinch pinchstart pinchend pinchcancel"
+               (fn [ev]
+                 (let [lock @touch-lock]
+                   (cond (and (nil? lock) (= (.-type ev) "pinchstart"))
+                         (do (reset! touch-lock :pinch)
+                             (rf/dispatch [:pinched-app (.-scale ev) (.-center ev)]))
+
+                         (and (= :pinch lock)
+                              (or (= (.-type ev) "pinchcancel") (= (.-type ev) "pinchend")))
+                         (do (reset! touch-lock nil)
+                             (rf/dispatch [:stopped-pinching-app]))
+
+                         (= :pinch lock)
+                         (rf/dispatch [:pinched-app (.-scale ev) (.-center ev)])))))))
 
       :component-will-unmount
       (fn [this] (when-let [ham-man (:ham-man @touch-state)] (.destroy ham-man)))
@@ -220,10 +239,13 @@
       (fn []
         [:div.app {:on-click #(rf/dispatch [:clicked-app-div
                                             (.-clientX (.-nativeEvent %))
-                                            (.-clientY (.-nativeEvent %))])}
+                                            (.-clientY (.-nativeEvent %))])
+                   :on-wheel (fn [e]
+                               (rf/dispatch [:scrolled-wheel (.-deltaY e) (.-clientX e) (.-clientY e)]))}
          [left-nav]
          [node-panel]
          [canvas]])})))
+
 
 ;; (comment
 ;;   (+ 3 3)

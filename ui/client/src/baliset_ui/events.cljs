@@ -18,6 +18,8 @@
              :node-offset {}
              :pan [0 0]
              :pan-offset [0 0]
+             :scale 1
+             :pinch-scale 1
              :inlet-offset {}
              :outlet-offset {}
              :selected-io nil
@@ -153,10 +155,11 @@
 (rf/reg-event-fx
  :clicked-app-div
  (fn [{:keys [db]} [_ x y]]
-   (let [[pan-x pan-y] (mapv + (:pan db) (:pan-offset db))]
+   (let [[pan-x pan-y] (mapv + (:pan db) (:pan-offset db))
+         scale (:scale db)]
      (merge {}
             (cond (:selected-add-btn db)
-                  {:ws-add-node [(:selected-add-btn db) (- x pan-x) (- y pan-y)]}
+                  {:ws-add-node [(:selected-add-btn db) (- (/ x scale) pan-x) (- (/ y scale) pan-y)]}
 
                   :default
                   {:db (assoc db
@@ -203,9 +206,10 @@
 (rf/reg-event-db
  :drag-node
  (fn [db [_ id x y]]
-   (-> db
-       (assoc :recently-interacted-node id)
-       (assoc-in [:node-offset id] [x y]))))
+   (let [scale (:scale db)]
+     (-> db
+         (assoc :recently-interacted-node id)
+         (assoc-in [:node-offset id] [(/ x scale) (/ y scale)])))))
 
 (rf/reg-event-db
  :clicked-node-header
@@ -240,7 +244,8 @@
 (rf/reg-event-db
  :pan-camera
  (fn [db [_ x y]]
-   (assoc db :pan-offset [x y])))
+   (let [scale (:scale db)]
+     (assoc db :pan-offset [(/ x scale) (/ y scale)]))))
 
 (rf/reg-event-db
  :finish-pan-camera
@@ -248,3 +253,42 @@
    (assoc db
           :pan (mapv + (:pan db) (:pan-offset db))
           :pan-offset [0 0])))
+
+(rf/reg-event-db
+ :scrolled-wheel
+ (fn [db [_ delta-y client-x client-y]]
+   (let [old-scale (:scale db)
+         new-scale (+ old-scale (* 0.2 (* -1 (Math/sign delta-y))))
+         scale-change (- new-scale old-scale)
+         [pan-x pan-y] (:pan db)]
+     (if (> new-scale 0.2)
+       (assoc db
+              :scale new-scale
+              :pan [(+ pan-x (- (/ client-x new-scale) (/ client-x old-scale)))
+                    (+ pan-y (- (/ client-y new-scale) (/ client-y old-scale)))])
+       db))))
+
+(rf/reg-event-db
+ :pinched-app
+ (fn [db [_ pinch-scale center]]
+   (let [x (.-x center)
+         y (.-y center)
+         scale (:scale db)
+         old-pinch-scale (:pinch-scale db)
+         old-scale (+ (- old-pinch-scale 1) scale)
+         new-scale (+ (- pinch-scale 1) scale)
+         [pan-x pan-y] (:pan db)]
+     ;; (js/alert (str pinch-scale "panx: " pan-x  "pany: " pan-y))
+     (if (> new-scale 0.2)
+       (assoc db
+              :pinch-scale pinch-scale
+              :pan [(+ pan-x (- (/ x new-scale) (/ x old-scale)))
+                    (+ pan-y (- (/ y new-scale) (/ y old-scale)))])
+       db))))
+
+(rf/reg-event-db
+ :stopped-pinching-app
+ (fn [db _]
+   (assoc db
+          :scale (+ (- (:pinch-scale db) 1) (:scale db))
+          :pinch-scale 1)))

@@ -130,3 +130,9 @@ rf/subscribe
     (rf/subscribe [:pan-offset])])
  (fn [[pan pan-offset] _]
    (mapv + pan pan-offset)))
+
+(rf/reg-sub
+ :scale
+ (fn [db _]
+   (+ (- (:pinch-scale db) 1)
+      (:scale db))))
