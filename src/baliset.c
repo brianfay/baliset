@@ -263,6 +263,7 @@ patch *new_patch(audio_options audio_opts) {
     p->hw_inlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
     p->hw_inlets[i].buf_size = audio_opts.buf_size;
     p->hw_inlets[i].num_connections = 0;
+    p->hw_inlets[i].connections = NULL;
     p->hw_inlets[i].name = name;
     p->hw_inlets[i].val = 0.0;
   }
@@ -288,7 +289,11 @@ patch *new_patch(audio_options audio_opts) {
     char *name = malloc(2);
     name[0] = i;
     name[1] = '\0';
-    p->digital_outlets[i] = new_outlet(audio_opts.digital_frames, name);//TODO: fix/free the name
+    p->digital_outlets[i].buf = calloc(audio_opts.digital_frames, sizeof(float));
+    p->digital_outlets[i].buf_size = audio_opts.digital_frames;
+    p->digital_outlets[i].num_connections = 0;
+    p->digital_outlets[i].connections = NULL;
+    p->digital_outlets[i].name = name;
   }
 #endif
   return p;
