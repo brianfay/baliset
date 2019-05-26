@@ -517,7 +517,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
                                                      i);
             struct free_ptr_msg f = {.ptr = d.in_conn};
             struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
-            assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
+            tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
             conn = conn->next;
           }
         }
@@ -529,7 +529,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
                                                      conn->io_id);
             struct free_ptr_msg f = {.ptr = d.in_conn};
             struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
-            assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
+            tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
             conn = conn->next;
           }
         }
@@ -537,7 +537,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
         remove_node(p, n);
         struct free_node_msg f = {.ptr = n};
         struct non_rt_msg msg = {.type = FREE_NODE, .free_node_msg = f};
-        assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
+        tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
         break;
       }
     case CONNECT:
@@ -552,9 +552,9 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
                                                  msg->disconnect_msg.inlet_idx);
         struct free_ptr_msg f = {.ptr = d.in_conn};
         struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
-        assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
+        tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
         msg.free_ptr_msg.ptr = d.out_conn;
-        assert(tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg)) == 1);
+        tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
         break;
       }
   case CONTROL:
@@ -607,7 +607,7 @@ void handle_osc_message(patch *p, tosc_message *osc) {
     node *n = new_node(p, type);
     struct add_msg body = {.node = n};
     struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
-    assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+    tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -625,7 +625,7 @@ void handle_osc_message(patch *p, tosc_message *osc) {
     in_conn->io_id = outlet_idx;
     struct connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
     struct rt_msg msg = {.type = CONNECT, .connect_msg = body};
-    assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+    tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/disconnect", strlen("/node/disconnect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -633,19 +633,19 @@ void handle_osc_message(patch *p, tosc_message *osc) {
     int32_t inlet_idx = tosc_getNextInt32(osc);
     struct disconnect_msg body = {.out_node_id = out_node_id, .outlet_idx = outlet_idx, in_node_id = in_node_id, inlet_idx = inlet_idx};
     struct rt_msg msg = {.type = DISCONNECT, .disconnect_msg = body};
-    assert(tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg)) == 1);
+    tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/delete", strlen("/node/delete")) == 0) {
     int32_t node_id = tosc_getNextInt32(osc);
     struct delete_msg body = {.node_id = node_id};
     struct rt_msg msg = {.type = DELETE_NODE, .delete_msg = body};
-    assert(tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg)) == 1);
+    tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/control", strlen("/node/control")) == 0) {
     int32_t node_id = tosc_getNextInt32(osc);
     int32_t ctl_id = tosc_getNextInt32(osc);
     float val = tosc_getNextFloat(osc);
     struct control_msg body = {.node_id = node_id, .ctl_id = ctl_id, .val = val};
     struct rt_msg msg = {.type = CONTROL, .control_msg = body};
-    assert(tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg)) == 1);
+    tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
   } else {
     printf("unexpected message: %s\n", address);
   }
@@ -666,7 +666,13 @@ void handle_non_rt_msg(patch *p, struct non_rt_msg *msg) {
   }
 }
 
-void run_osc_server(patch *p){
+static volatile int keepRunning = 1;
+
+void stop_osc_server() {
+  keepRunning = 0;
+}
+
+void run_osc_server(patch *p) {
   const int fd = socket(AF_INET, SOCK_DGRAM, 0); //ip v4 datagram socket
   fcntl(fd, F_SETFL, O_NONBLOCK); // set the socket to non-blocking
   struct sockaddr_in sin;
