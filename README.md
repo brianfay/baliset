@@ -15,9 +15,11 @@ To build on Desktop, run
 make
 ```
 
-To build on Bela, clone the project into `/root/baliset` or something and run
+To build on Bela, clone the project into `/root/baliset` or rsync it from another computer and run
 ```
-PROTOPATCH_ENV=bela make
+export BALISET_ENV=bela
+make clean
+make
 ```
 
 To use the program, run
