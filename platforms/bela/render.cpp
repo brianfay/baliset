@@ -4,10 +4,6 @@
 #include <csignal>
 #include "baliset.h"
 
-patch *p;
-
-int debounce_frames;
-
 typedef struct
 {
   int pin;
@@ -15,7 +11,10 @@ typedef struct
   int state;
 } Button;
 
+patch *p;
+int debounce_frames;
 Button btn1, btn2, btn3;
+AuxiliaryTask oscServerTask;
 
 /**
  * Returns 1.0 if the button is down, 0.0 if it's up.
@@ -66,79 +65,11 @@ bool setup(BelaContext *context, void *userData)
                               .digital_channels=3, .digital_frames=context->audioFrames}; //using audioFrames buffer size instead of digital
   p = new_patch(audio_opts);
 
-  /* guitar delay
-  node *adc = new_adc(p);
-  node *delay_l = new_delay(p);
-  node *delay_r = new_delay(p);
-  node *dac = new_dac(p);
-
-  add_node(p, adc);
-  add_node(p, delay_l);
-  add_node(p, delay_r);
-  add_node(p, dac);
-
-  set_control(delay_l, "delay_time", 0.97);
-  set_control(delay_r, "delay_time", 1.44);
-
-  blst_connect(p, adc->id, 0, delay_l->id, 0);
-  blst_connect(p, adc->id, 0, delay_r->id, 0);
-  blst_connect(p, delay_l->id, 0, dac->id, 0);
-  blst_connect(p, delay_r->id, 0, dac->id, 1);
-  */
-
-  /*sin multiply with button press
-  node *osc = new_sin_osc(p);
-  node *osc2 = new_sin_osc(p);
-  node *osc3 = new_sin_osc(p);
-  node *mul = new_mul(p);
-  node *mul2 = new_mul(p);
-  node *mul3 = new_mul(p);
-  node *digiread = new_digiread(p);
-  node *dac = new_dac(p);
-  add_node(p, osc);
-  add_node(p, osc2);
-  add_node(p, osc3);
-  add_node(p, mul);
-  add_node(p, mul2);
-  add_node(p, mul3);
-  add_node(p, digiread);
-  add_node(p, dac);
-
-  set_control(osc, "freq", 330.0);
-  set_control(osc2, "freq", 440.0);
-  set_control(osc3, "freq", 660.0);
-
-  blst_connect(p, osc->id, 0, mul->id, 0);
-  blst_connect(p, osc2->id, 0, mul2->id, 0);
-  blst_connect(p, osc3->id, 0, mul3->id, 0);
-  blst_connect(p, digiread->id, 0, mul->id, 1);
-  blst_connect(p, digiread->id, 1, mul2->id, 1);
-  blst_connect(p, digiread->id, 2, mul3->id, 1);
-  blst_connect(p, mul->id, 0, dac->id, 0);
-  blst_connect(p, mul->id, 0, dac->id, 1);
-  blst_connect(p, mul2->id, 0, dac->id, 0);
-  blst_connect(p, mul2->id, 0, dac->id, 1);
-  blst_connect(p, mul3->id, 0, dac->id, 0);
-  blst_connect(p, mul3->id, 0, dac->id, 1);
-  */
-
-  node *loop = new_looper(p);
-  node *digiread = new_digiread(p);
-  node *adc = new_adc(p);
-  node *dac = new_dac(p);
-  add_node(p, loop);
-  add_node(p, digiread);
-  add_node(p, adc);
-  add_node(p, dac);
-
-  blst_connect(p, adc->id, 0, dac->id, 0);
-  blst_connect(p, adc->id, 0, dac->id, 1);
-  blst_connect(p, adc->id, 0, loop->id, 0);
-  blst_connect(p, digiread->id, 0, loop->id, 1);
-  blst_connect(p, loop->id, 0, dac->id, 0);
-  blst_connect(p, loop->id, 0, dac->id, 1);
-
   sort_patch(p);
+  printf("sorted patch\n");
+
+  if((oscServerTask = Bela_createAuxiliaryTask((void(*)(void*))&run_osc_server, 80, "osc-server", (void *)p)) == 0) return false;
+  Bela_scheduleAuxiliaryTask(oscServerTask);
 	return true;
 }
 
@@ -187,11 +118,14 @@ void render(BelaContext *context, void *userData)
 
 void cleanup(BelaContext *context, void *userData)
 {
-  //TODO cleanup the patch, shutdown osc server
+  Bela_stopAllAuxiliaryTasks();
+  Bela_deleteAllAuxiliaryTasks();
+  free_patch(p);
 }
 
 void interrupt_handler(int)
 {
+  stop_osc_server();
   gShouldStop = 1;
 }
 
