@@ -1,7 +1,7 @@
 ^{:css-dirs ["resources/public/css"]
-  ;; :connect-url "localhost:9500"
-  :ring-server-options {:host "192.168.0.104"}
-  ;; :target-dir "resources"
+  :connect-url "ws://[[client-hostname]]:[[server-port]]/figwheel-connect"
+  :target-dir "resources"
+  :open-url false
   ;; :pprint-config true
   }
 {:main baliset-ui.core}
