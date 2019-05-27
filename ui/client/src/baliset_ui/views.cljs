@@ -1,6 +1,7 @@
 (ns baliset-ui.views
   (:require [re-frame.core :as rf]
             [cljsjs.hammer]
+            [goog.object :as goo]
             [reagent.core :as re :refer [create-class]]))
 
 (defn- translate [x y]
@@ -32,7 +33,7 @@
     [(if selected? :div.inlet.selected-inlet :div.inlet)
      {:ref (fn [this]
              (if this
-               (rf/dispatch [:reg-inlet-offset node-id idx (.-offsetTop this) (.-offsetHeight this)])
+               (rf/dispatch [:reg-inlet-offset node-id idx (goo/get this "offsetTop") (goo/get this "offsetHeight")])
                (rf/dispatch [:unreg-inlet-offset node-id idx])))
       :on-click (fn [e]
                   (.stopPropagation e)
@@ -48,8 +49,8 @@
       :ref (fn [this]
              (if this
                (rf/dispatch [:reg-outlet-offset node-id idx
-                             (.-offsetTop this) (.-offsetHeight this)
-                             (.-offsetLeft this) (.-offsetWidth this)])
+                             (goo/get this "offsetTop") (goo/get this "offsetHeight")
+                             (goo/get this "offsetLeft") (goo/get this "offsetWidth")])
                (rf/dispatch [:unreg-outlet-offset node-id idx])))}
      name]))
 
@@ -71,18 +72,18 @@
           (.on ham-man "pan panstart panend pancancel"
                (fn [ev]
                  (when (or (nil? @touch-lock) (= @touch-lock :node))
-                   (cond (and (= "panstart" (.-type ev)) #_(= (.-target ev) dom-node))
+                   (cond (= "panstart" (goo/get ev "type"))
                          (do (swap! touch-state assoc :moving true)
                              (reset! touch-lock :node)
-                             (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)]))
+                             (rf/dispatch [:drag-node id (goo/get ev "deltaX") (goo/get ev "deltaY")]))
 
-                         (and (:moving @touch-state) (.-isFinal ev))
+                         (and (:moving @touch-state) (goo/get ev "isFinal"))
                          (do (swap! touch-state assoc :moving false)
                              (reset! touch-lock nil)
                              (rf/dispatch [:finish-drag-node id]))
 
                          (:moving @touch-state)
-                         (rf/dispatch [:drag-node id (.-deltaX ev) (.-deltaY ev)])))))
+                         (rf/dispatch [:drag-node id (goo/get ev "deltaX") (goo/get ev "deltaY")])))))
           (swap! touch-state assoc :ham-man ham-man)))
 
       :component-will-unmount
@@ -204,33 +205,33 @@
           (.on ham-man "pan panstart panend"
                (fn [ev]
                  (when (or (nil? @touch-lock) (= @touch-lock :pan-app))
-                   (cond (and (= "panstart" (.-type ev)) (= (.-target ev) dom-node))
+                   (cond (and (= "panstart" (goo/get ev "type")) (= (goo/get ev "target") dom-node))
                          (do (swap! touch-state assoc :moving true)
                              (reset! touch-lock :pan-app)
-                             (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))
+                             (rf/dispatch [:pan-camera (goo/get ev "deltaX") (goo/get ev "deltaY")]))
 
-                         (and (:moving @touch-state) (.-isFinal ev))
+                         (and (:moving @touch-state) (goo/get ev "isFinal"))
                          (do (swap! touch-state assoc :moving false)
                              (reset! touch-lock nil)
                              (rf/dispatch [:finish-pan-camera]))
 
                          (:moving @touch-state)
-                         (rf/dispatch [:pan-camera (.-deltaX ev) (.-deltaY ev)]))))
+                         (rf/dispatch [:pan-camera (goo/get ev "deltaX") (goo/get ev "deltaY")]))))
                (swap! touch-state assoc :ham-man ham-man))
           (.on ham-man "pinch pinchstart pinchend pinchcancel"
                (fn [ev]
                  (let [lock @touch-lock]
-                   (cond (and (nil? lock) (= (.-type ev) "pinchstart"))
+                   (cond (and (nil? lock) (= (goo/get ev "type") "pinchstart"))
                          (do (reset! touch-lock :pinch)
-                             (rf/dispatch [:pinched-app (.-scale ev) (.-center ev)]))
+                             (rf/dispatch [:pinched-app (goo/get ev "scale") (goo/get ev "center")]))
 
                          (and (= :pinch lock)
-                              (or (= (.-type ev) "pinchcancel") (= (.-type ev) "pinchend")))
+                              (or (= (goo/get ev "type") "pinchcancel") (= (goo/get ev "type") "pinchend")))
                          (do (reset! touch-lock nil)
                              (rf/dispatch [:stopped-pinching-app]))
 
                          (= :pinch lock)
-                         (rf/dispatch [:pinched-app (.-scale ev) (.-center ev)])))))))
+                         (rf/dispatch [:pinched-app (goo/get ev "scale") (goo/get ev "center")])))))))
 
       :component-will-unmount
       (fn [this] (when-let [ham-man (:ham-man @touch-state)] (.destroy ham-man)))
@@ -238,10 +239,10 @@
       :reagent-render
       (fn []
         [:div.app {:on-click #(rf/dispatch [:clicked-app-div
-                                            (.-clientX (.-nativeEvent %))
-                                            (.-clientY (.-nativeEvent %))])
+                                            (goo/getValueByKeys % "nativeEvent" "clientX")
+                                            (goo/getValueByKeys % "nativeEvent" "clientY")])
                    :on-wheel (fn [e]
-                               (rf/dispatch [:scrolled-wheel (.-deltaY e) (.-clientX e) (.-clientY e)]))}
+                               (rf/dispatch [:scrolled-wheel (goo/get e "deltaY") (goo/get e "clientX") (goo/get e "clientY")]))}
          [left-nav]
          [node-panel]
          [canvas]])})))

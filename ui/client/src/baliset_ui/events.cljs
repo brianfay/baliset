@@ -1,13 +1,11 @@
 (ns baliset-ui.events
   (:require [re-frame.core :as rf]
             [ajax.core :as ajax]
+            [goog.object :as goo]
             [clojure.set :as cset]))
 
 (defn local-route [route]
-  ;; (str (.-location js/window) route)
-  (str "http://192.168.0.104:3001/" route)
-  ;; (str "http://localhost:3001/" route)
-  )
+  (str (goo/get js/window "location") route))
 
 (rf/reg-event-db
  :initialize-db
@@ -43,10 +41,11 @@
    (-> db
        (assoc :nodes
               (reduce-kv
-               (fn [m k v] (assoc m (int (name k)) v))
+               (fn [m k v]
+                 (assoc m (js/parseInt (name k)) v))
                {}
-               (js->clj (.-nodes resp) :keywordize-keys true)))
-       (update :connections into (js->clj (.-connections resp))))))
+               (js->clj (goo/get resp "nodes") :keywordize-keys true)))
+       (update :connections into (js->clj (goo/get resp "connections"))))))
 
 (rf/reg-event-db
  :node-metadata-failure ;;TODO
@@ -271,14 +270,13 @@
 (rf/reg-event-db
  :pinched-app
  (fn [db [_ pinch-scale center]]
-   (let [x (.-x center)
-         y (.-y center)
+   (let [x (goo/get center "x")
+         y (goo/get center "y")
          scale (:scale db)
          old-pinch-scale (:pinch-scale db)
          old-scale (+ (- old-pinch-scale 1) scale)
          new-scale (+ (- pinch-scale 1) scale)
          [pan-x pan-y] (:pan db)]
-     ;; (js/alert (str pinch-scale "panx: " pan-x  "pany: " pan-y))
      (if (> new-scale 0.2)
        (assoc db
               :pinch-scale pinch-scale

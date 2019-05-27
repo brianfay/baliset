@@ -1,7 +1,9 @@
-{:deps {com.bhauman/figwheel-main {:mvn/version "0.2.0"}
+{:deps {org.clojure/clojurescript {:mvn/version "1.10.516"}
+        com.bhauman/figwheel-main {:mvn/version "0.2.0"}
         re-frame {:mvn/version "0.10.6"}
         day8.re-frame/http-fx {:mvn/version "0.1.6"}
         cljsjs/hammer {:mvn/version "2.0.8-0"}}
- :aliases {:fig {:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]}}
+ :aliases {:fig {:main-opts ["-m" "figwheel.main" "-b" "dev" "-r"]}
+           :prod {:main-opts ["-m" "cljs.main" "-co" "prod-opts.edn" "-c" "baliset-ui.core"]}}
  :paths ["src" "target" "resources"]
  :css-dirs ["resources/public/css"]}

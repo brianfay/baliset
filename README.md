@@ -22,9 +22,33 @@ make clean
 make
 ```
 
-To use the program, run
+To start the audio server, run
 ```
 ./build/baliset
 ```
 
-If nothing works, run for the hills
+Then start the server for the web ui
+```
+cd ui/server
+npm install # (if you haven't already done this)
+node app.js
+```
+
+The clojurescript browser app has a [figwheel](https://github.com/bhauman/figwheel-main)-driven live-reload workflow. You can run this with
+```
+cd ui/client
+clj -Afig
+```
+
+Or from emacs/cider, open `ui/client/src/baliset_ui/core.cljs`, run `cider-jack-in-cljs`, choose ``fighweel-main`, and type `:dev` when prompted
+
+Alternatively, the browser app be built with clojurescript optimizations on:
+```
+cd ui/client
+clj -Aprod
+```
+
+A dev build outputs to `ui/client/resources/public/cljs-out/dev-main.js`, while a prod build outputs to `ui/client/resources/public/cljs-out/prod-main.js`. 
+Make sure the right one is included in `ui/client/resources/public/index.html`.
+
+Then open your browser to localhost:3001 (the node ui server must be running).

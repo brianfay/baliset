@@ -1,32 +1,34 @@
 (ns baliset-ui.websocket
-  (:require [re-frame.core :as rf]))
+  (:require [re-frame.core :as rf]
+            [goog.object :as goo]))
 
 (def port "3002")
 
 (defonce sock (atom nil))
 
 (defn handle-message [e]
-  (let [msg (.parse js/JSON (.-data e))]
-    (case (.-route msg)
+  (let [msg (.parse js/JSON (goo/get e "data"))]
+    (println "in handle-message, got " msg)
+    (case (goo/get msg "route")
       "/app_state"
       (rf/dispatch [:app-state msg])
       "/node/added"
-      (rf/dispatch [:db-add-node (.-node_id msg) (.-type msg) (.-x msg) (.-y msg)])
+      (rf/dispatch [:db-add-node (goo/get msg "node_id") (goo/get msg "type") (goo/get msg "x") (goo/get msg "y")])
       "/node/deleted"
-      (rf/dispatch [:db-delete-node (.-node_id msg)])
+      (rf/dispatch [:db-delete-node (goo/get msg "node_id")])
       "/node/connected"
-      (rf/dispatch [:db-connect-node (.-out_node_id msg) (.-outlet_idx msg)
-                    (.-in_node_id msg) (.-inlet_idx msg)])
+      (rf/dispatch [:db-connect-node (goo/get msg "out_node_id") (goo/get msg "outlet_idx")
+                    (goo/get msg "in_node_id") (goo/get msg "inlet_idx")])
       "/node/disconnected"
-      (rf/dispatch [:db-disconnect-node (.-out_node_id msg) (.-outlet_idx msg)
-                    (.-in_node_id msg) (.-inlet_idx msg)])
+      (rf/dispatch [:db-disconnect-node (goo/get msg "out_node_id")  (goo/get msg "outlet_idx")
+                    (goo/get msg "in_node_id") (goo/get msg "inlet_idx")])
       "/node/moved"
-      (rf/dispatch [:move-node (.-node_id msg) (.-x msg) (.-y msg)])
+      (rf/dispatch [:move-node (goo/get msg "node_id") (goo/get msg "x") (goo/get msg "y")])
       (println "unrecognized msg: " msg))))
 
 (defn connect []
   (when-not @sock
-    (let [ws (js/WebSocket. (str "ws://" (.-hostname (.-location js/window)) ":" port))]
+    (let [ws (js/WebSocket. (str "ws://" (goo/getValueByKeys js/window "location" "hostname") ":" port))]
       (.addEventListener ws "message" handle-message)
       (reset! sock ws))))
 
