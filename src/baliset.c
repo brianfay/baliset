@@ -99,24 +99,6 @@ void destroy_outlets(node *n) {
   free(n->outlets);
 }
 
-/* int get_outlet_idx(node *n, const char *name){ */
-/*   for(int i=0; i < n->num_outlets; i++){ */
-/*     if(strcmp(name, n->outlets[i].name) == 0){ */
-/*       return i; */
-/*     } */
-/*   } */
-/*   return -1; */
-/* } */
-
-/* int get_inlet_idx(node *n, const char *name){ */
-/*   for(int i=0; i < n->num_inlets; i++){ */
-/*     if(strcmp(name, n->inlets[i].name) == 0){ */
-/*       return i; */
-/*     } */
-/*   } */
-/*   return -1; */
-/* } */
-
 void free_node_list(node *n) {
   node *tmp;
   while (n) {
@@ -131,7 +113,6 @@ void free_node_list(node *n) {
 
 void add_node(patch *p, node *n) {
   n->id = p->next_id++;
-  p->num_nodes++;
   unsigned int idx = n->id % TABLE_SIZE;
 
   //add to table
@@ -194,7 +175,7 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
 }
 
 node *new_node(const patch *p, const char *type) {
-  //would love to not need this function but the alternative I can think involves dynamic libs and sounds painful
+  //would love to not need this function but the alternative I can think of involves dynamic libs and sounds painful
   if(strcmp(type, "sin") == 0) {
     return new_sin_osc(p);
   }
@@ -243,9 +224,8 @@ void init_outlet(const patch *p, node *n, int idx){
 
 patch *new_patch(audio_options audio_opts) {
   patch *p = malloc(sizeof(patch));
-  p->table = malloc(sizeof(node*) * TABLE_SIZE);//TODO this doesn't really need to be on the heap
+  p->table = malloc(sizeof(node*) * TABLE_SIZE);
   for(int i = 0; i < TABLE_SIZE; i++) p->table[i] = NULL;
-  p->num_nodes = 0;
   p->next_id = 0;
   p->audio_opts = audio_opts;
   p->order.top = -1;
@@ -281,7 +261,7 @@ patch *new_patch(audio_options audio_opts) {
 }
 
 int detect_cycles(const patch *p, int out_node_id, int in_node_id, int outlet_idx, int inlet_idx){
-  //dfs thru, mark, if you've already marked something return -1
+  //TODO: dfs thru, mark, if you've already marked something return -1
   return -1;
 }
 
@@ -492,7 +472,6 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
         for (int i = 0; i < n->num_inlets; i++) {
           connection *conn = n->inlets[i].connections;
           while (conn) {
-            printf("disconnecting inlet: %d, %d, %d, %d", conn->node_id, conn->io_id, n->id, i);
             struct disconnect_pair d = disconnect(p, conn->node_id,
                                                      conn->io_id,
                                                      n->id,

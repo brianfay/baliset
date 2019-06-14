@@ -79,11 +79,10 @@ typedef struct patch {
   node_table table;
   struct int_stack order;
   int next_id; //should monotonically increase
-  int num_nodes; //dunno if I need this
   audio_options audio_opts;
   //it's kind of confusing, but hw_inlets are the audio outputs
   //hw_outlets are the audio inputs
-  inlet *hw_inlets; //re-initing patch with different audio-options would be super annoying... but would kind of justify making inlets/outlets external to nodes
+  inlet *hw_inlets;
 #ifdef BELA
   outlet *digital_outlets;
   //TODO might want digital inlets, and analog inlets/outlets
