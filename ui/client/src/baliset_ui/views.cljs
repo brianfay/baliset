@@ -22,10 +22,11 @@
 (defn connections
   "An svg element containing lines that represent connections between inlets and outlets."
   []
-  [:svg [:g
-         (for [c @(rf/subscribe [:connections])]
-           ^{:key (str "connection:" c)}
-           [connection c])]])
+  [:svg.noclick
+   [:g
+    (for [c @(rf/subscribe [:connections])]
+      ^{:key (str "connection:" c)}
+      [connection c])]])
 
 (defn inlet
   [node-id idx name]
@@ -139,28 +140,29 @@
       (rf/dispatch [:clicked-add-btn node-name]))}
    (str node-name)])
 
-(defn minimized-left-nav []
-  [:div.minimized-left-nav
-   {:on-click #(rf/dispatch [:clicked-minimized-left-nav])}
-   [:svg [:g
-          [:line {:x1 0 :y1 4 :x2 24 :y2 4}]
-          [:line {:x1 0 :y1 10 :x2 24 :y2 10}]
-          [:line {:x1 0 :y1 16 :x2 24 :y2 16}]]]])
+(defn minimized-app-panel []
+  [:div.minimized-app-panel
+   {:on-click #(do (println "clicked minimized app panel")(rf/dispatch [:clicked-minimized-app-panel]))}
+   [:svg.noclick [:g
+                  [:line {:x1 0 :y1 4 :x2 24 :y2 4}]
+                  [:line {:x1 0 :y1 10 :x2 24 :y2 10}]
+                  [:line {:x1 0 :y1 16 :x2 24 :y2 16}]]]])
 
-(defn expanded-left-nav []
+(defn expanded-app-panel []
   (let [node-types @(rf/subscribe [:node-types])]
-    [:div.left-nav
-     {:on-click #(rf/dispatch [:clicked-expanded-left-nav])}
+    [:div.app-panel
+     {:on-click #(rf/dispatch [:clicked-expanded-app-panel])}
      (if node-types
        (for [t node-types]
          ^{:key (str "add-btn-" t)}
          [add-btn t])
        [:div])]))
 
-(defn left-nav []
-  (if @(rf/subscribe [:left-nav-expanded?])
-    [expanded-left-nav]
-    [minimized-left-nav]))
+(defn app-panel []
+  (if @(rf/subscribe [:app-panel-expanded?])
+    [expanded-app-panel]
+    [minimized-app-panel]
+    ))
 
 (defn delete-node-btn []
   [:div.delete-btn
@@ -169,15 +171,82 @@
                 (rf/dispatch [:clicked-delete-node-btn]))}
    "DELETE"])
 
+(defn minimized-node-panel [title]
+  [:div.minimized-node-panel
+   {:on-click (fn [e]
+                (.stopPropagation e)
+                (rf/dispatch [:clicked-minimized-node-panel]))}
+   [:p title]])
+
+(defn hslider [node-info ctl-id ctl]
+  (let [x-off 4
+        y-off 6
+        width 132
+        height 8
+        node-type (:type node-info)
+        node-id (:id node-info)]
+    (create-class
+     {:display-name (str "hslider-" (:id node-info) (get ctl "name"))
+      :component-did-mount
+      (fn [this]
+        (let [dom-node (re/dom-node this)
+              ham-man (new js/Hammer.Manager dom-node)]
+          (.add ham-man (new js/Hammer.Pan #js {"event" "pan"}))
+          (.on ham-man "pan panstart panend pancancel"
+               (fn [ev]
+                 (if (goo/get ev "isFinal")
+                   (rf/dispatch [:finish-dragging-hslider node-type node-id ctl-id])
+                   (rf/dispatch [:drag-hslider node-type node-id ctl-id (goo/get ev "deltaX") width]))))))
+      :reagent-render
+      (fn [node-info ctl-id ctl]
+        (let [ctl-metadata @(rf/subscribe [:ctl-meta node-type ctl-id])
+              [min max] (or (get ctl-metadata "range") [0.0 1.0])
+              value (or @(rf/subscribe [:hslider-value node-type node-id ctl-id]) 0.0)
+              percentage (/ (- value min) (- max min))]
+          [:svg.hslider
+           [:g [:text {:x 8 :y 0 :fill "#fff"} (.toFixed value 2)]
+            [:rect {:x x-off :y y-off :width width :height height :rx 4 :ry 4 :fill "#333"}]
+            [:rect {:x x-off :y y-off :width (* percentage width) :height height :rx 4 :ry 4 :fill "#2bb"}]
+            [:circle {:cx (+ x-off (* percentage width)) :cy (+ y-off (/ height 2)) :r 7 :fill "#2bb"}]]]))})))
+
+(defn trigger [node-info ctl-id ctl]
+  [:div "todo: trigger"])
+
+(defn control [node-info ctl-id ctl]
+  [:div.ctl
+   [:p (get ctl "name")]
+   (case (get ctl "type")
+     "hslider"
+     [hslider node-info ctl-id ctl]
+
+     "trigger"
+     [trigger node-info ctl-id ctl])])
+
+(defn controls [node-info]
+  (let [node-meta @(rf/subscribe [:node-metadata (:type node-info)])
+        controls (get node-meta "controls")]
+    [:div.controls
+     (map-indexed
+      (fn [ctl-id ctl]
+        ^{:key (str "ctl:" (:id node-info) (get ctl "name"))}
+        [control node-info ctl-id ctl])
+      controls)]))
+
 (defn node-panel []
-  (if-let [node-info @(rf/subscribe [:selected-node])]
-    [:div.node-panel
-     (str node-info)
-     [delete-node-btn]]
-    [:div])
+  (let [expanded? @(rf/subscribe [:node-panel-expanded?])
+        node-info @(rf/subscribe [:selected-node])]
+    (cond (and node-info expanded?)
+          [:div.node-panel
+           {:on-click (fn [e] (.stopPropagation e))}
+           [:h1 (str (:type node-info) " " (:id node-info))]
+           [controls node-info]
+           [delete-node-btn]]
 
-  )
+          node-info
+          [minimized-node-panel (str (:type node-info) " " (:id node-info))]
 
+          :default
+          [:div])))
 
 (defn canvas
   "A zero-sized div that shows its contents via overflow: visible.
@@ -243,7 +312,7 @@
                                             (goo/getValueByKeys % "nativeEvent" "clientY")])
                    :on-wheel (fn [e]
                                (rf/dispatch [:scrolled-wheel (goo/get e "deltaY") (goo/get e "clientX") (goo/get e "clientY")]))}
-         [left-nav]
+         [app-panel]
          [node-panel]
          [canvas]])})))
 

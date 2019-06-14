@@ -1,5 +1,7 @@
 (ns baliset-ui.subs
-  (:require [re-frame.core :as rf]))
+  (:require [re-frame.core :as rf]
+            [goog.object :as goo]))
+
 
 (rf/reg-sub
  :all-node-metadata
@@ -50,9 +52,14 @@ rf/subscribe
    (= (:recently-interacted-node db) node-id)))
 
 (rf/reg-sub
- :left-nav-expanded?
+ :app-panel-expanded?
  (fn [db _]
-   (:left-nav-expanded? db)))
+   (:app-panel-expanded? db)))
+
+(rf/reg-sub
+ :node-panel-expanded?
+ (fn [db _]
+   (:node-panel-expanded? db)))
 
 (rf/reg-sub
  :selected-io?
@@ -112,6 +119,27 @@ rf/subscribe
          cx2 cx1
          cy2 out-y]
      [out-x out-y cx1 cy1 cx2 cy2 in-x in-y])))
+
+;; (rf/reg-sub
+;;  :control-value
+;;  (fn [db [_ node-id ctl-id]]
+;;    (get-in db [:control-value node-id ctl-id])))
+
+(rf/reg-sub
+ :ctl-meta
+ (fn [db [_ node-type ctl-id]]
+   (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)))
+
+(rf/reg-sub
+ :hslider-value
+ (fn [db [_ node-type node-id ctl-id]]
+   (let [ctl-metadata (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)
+         [min max] (or (get ctl-metadata "range") [0.0 1.0])
+         percent (or (get-in db [:hslider-percent node-id ctl-id])
+                     (/ (- (get ctl-metadata "default") min) (- max min))
+                     0.0)
+         percent-offset (or (get-in db [:hslider-percent-offset node-id ctl-id]) 0.0)]
+     (+ min (* (- max min) (+ percent percent-offset))))))
 
 (rf/reg-sub
  :pan

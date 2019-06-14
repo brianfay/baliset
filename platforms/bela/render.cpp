@@ -136,6 +136,8 @@ int main()
   Bela_defaultSettings(&settings);
         // you must have defined these function pointers somewhere and assign them to `settings` here.
         // only `settings.render` is required.
+  settings.periodSize = 128;
+  printf("num frames: %d", settings.periodSize);
   settings.setup = &setup;
   settings.render = &render;
   settings.cleanup = &cleanup;

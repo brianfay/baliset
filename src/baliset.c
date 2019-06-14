@@ -172,31 +172,21 @@ void free_node_table(node_table table) {
   free(table);
 }
 
-node *init_node(const patch *p, int num_inlets, int num_outlets){
+node *init_node(const patch *p, int num_inlets, int num_outlets, int num_controls){
   assert(num_inlets >= 0);
   assert(num_outlets >= 0);
+  assert(num_controls >= 0);
   node *n = malloc(sizeof(node));
   n->last_visited = -1;
+  n->num_controls = num_controls;
+
   n->num_inlets = num_inlets;
-  n->num_controls = 0;
   if(num_inlets > 0) n->inlets = malloc(sizeof(inlet) * num_inlets);
-  for(int i=0; i < num_inlets; i++){
-    inlet *in = &n->inlets[i];
-    in->buf = calloc(p->audio_opts.buf_size, sizeof(float));
-    in->buf_size = p->audio_opts.buf_size;
-    in->num_connections = 0;
-    in->connections = NULL;
-  }
 
   n->num_outlets = num_outlets;
   if(num_outlets > 0) n->outlets = malloc(sizeof(outlet) * num_outlets);
-  for(int i=0; i < num_outlets; i++){
-    outlet *out = &n->outlets[i];
-    out->buf = calloc(p->audio_opts.buf_size, sizeof(float));
-    out->buf_size = p->audio_opts.buf_size;
-    out->num_connections = 0;
-    out->connections = NULL;
-  }
+
+  if(num_controls > 0) n->controls = malloc(sizeof(control) * num_controls);
 
   n->prev = NULL;
   n->next = NULL;
@@ -231,22 +221,26 @@ node *new_node(const patch *p, const char *type) {
   return NULL;
 }
 
-//void destroy_node
-
-void init_inlet(node *n, int idx, char *name, float default_val){
+void init_inlet(const patch *p, node *n, int idx){
   assert(idx >= 0);
   assert(idx <= n->num_inlets);
-  n->inlets[idx].name = name;
-  n->inlets[idx].val = default_val;
+  inlet *in = &n->inlets[idx];
+  in->buf = calloc(p->audio_opts.buf_size, sizeof(float));
+  in->buf_size = p->audio_opts.buf_size;
+  in->num_connections = 0;
+  in->connections = NULL;
 }
 
-void init_outlet(node *n, int idx, char *name){
+void init_outlet(const patch *p, node *n, int idx){
   assert(idx >= 0);
   assert(idx <= n->num_outlets);
-  n->outlets[idx].name = name;
+  outlet *out = &n->outlets[idx];
+  out->buf = calloc(p->audio_opts.buf_size, sizeof(float));
+  out->buf_size = p->audio_opts.buf_size;
+  out->num_connections = 0;
+  out->connections = NULL;
 }
 
-//init_outlet
 patch *new_patch(audio_options audio_opts) {
   patch *p = malloc(sizeof(patch));
   p->table = malloc(sizeof(node*) * TABLE_SIZE);//TODO this doesn't really need to be on the heap
@@ -257,27 +251,18 @@ patch *new_patch(audio_options audio_opts) {
   p->order.top = -1;
   p->hw_inlets = malloc(sizeof(inlet) * audio_opts.hw_out_channels);
   for(int i = 0; i < audio_opts.hw_out_channels; i++){
-    char *name = malloc(2);
-    name[0] = i;
-    name[1] = '\0';
     p->hw_inlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
     p->hw_inlets[i].buf_size = audio_opts.buf_size;
     p->hw_inlets[i].num_connections = 0;
     p->hw_inlets[i].connections = NULL;
-    p->hw_inlets[i].name = name;
-    p->hw_inlets[i].val = 0.0;
   }
 
   p->hw_outlets = malloc(sizeof(outlet) * audio_opts.hw_in_channels);
   for(int i = 0; i < audio_opts.hw_in_channels; i++){
-    char *name = malloc(2);
-    name[0] = i;
-    name[1] = '\0';
     p->hw_outlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
     p->hw_outlets[i].buf_size = audio_opts.buf_size;
     p->hw_outlets[i].num_connections = 0;
     p->hw_outlets[i].connections = NULL;
-    p->hw_outlets[i].name = name;
   }
 
   tpipe_init(&p->consumer_pipe, 1024 * 10);
@@ -286,14 +271,10 @@ patch *new_patch(audio_options audio_opts) {
 #ifdef BELA
   p->digital_outlets = malloc(sizeof(outlet) * audio_opts.digital_channels);
   for(int i = 0; i < audio_opts.digital_channels; i++){
-    char *name = malloc(2);
-    name[0] = i;
-    name[1] = '\0';
     p->digital_outlets[i].buf = calloc(audio_opts.digital_frames, sizeof(float));
     p->digital_outlets[i].buf_size = audio_opts.digital_frames;
     p->digital_outlets[i].num_connections = 0;
     p->digital_outlets[i].connections = NULL;
-    p->digital_outlets[i].name = name;
   }
 #endif
   return p;
@@ -494,8 +475,8 @@ void zero_all_inlets(const patch *p) {
 }
 
 void set_control(node *n, int ctl_id, float val) {
-  inlet *in = &n->inlets[ctl_id];
-  in->val = val;
+  control *ctl = &n->controls[ctl_id];
+  ctl->val = val;
 }
 
 void handle_rt_msg(patch *p, struct rt_msg *msg) {
@@ -511,6 +492,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
         for (int i = 0; i < n->num_inlets; i++) {
           connection *conn = n->inlets[i].connections;
           while (conn) {
+            printf("disconnecting inlet: %d, %d, %d, %d", conn->node_id, conn->io_id, n->id, i);
             struct disconnect_pair d = disconnect(p, conn->node_id,
                                                      conn->io_id,
                                                      n->id,

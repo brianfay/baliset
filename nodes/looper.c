@@ -3,7 +3,7 @@
 typedef struct {
   float *buf;
   unsigned int recording;
-  unsigned int rw_head;
+  float rw_head;
   unsigned int loop_buf_size;
   float prev_trig_samp;
   unsigned int loop_length;
@@ -28,8 +28,10 @@ void process_looper(struct node *self) {
   float *trig_buf = i_trig.buf;
   outlet o_out = self->outlets[0];
   float *out_buf = o_out.buf;
+  float ctl_rate = self->controls[0].val;
+  float ctl_trig = self->controls[1].val;
   for(int i=0; i < o_out.buf_size; i++) {
-    float new_trig_samp = trig_buf[i];
+    float new_trig_samp = i_trig.num_connections > 0 ? trig_buf[i] : ctl_trig;
     if(ld->prev_trig_samp <= 0.0 && new_trig_samp > 0.0) {
       if(ld->recording) {ld->loop_length = ld->rw_head;}
       ld->loop_length %= ld->loop_buf_size;
@@ -40,15 +42,24 @@ void process_looper(struct node *self) {
 
     if(ld->recording) {
       out_buf[i] = 0.0;
-      ld->buf[ld->rw_head] = in_buf[i];
-      ld->rw_head = (ld->rw_head + 1) % ld->loop_buf_size;
-    }else {
-      out_buf[i] = ld->buf[ld->rw_head];
+      ld->buf[(int)ld->rw_head] = in_buf[i];
       ld->rw_head++;
+      if(ld->rw_head > ld->loop_buf_size) ld->rw_head -= ld->loop_buf_size;
+      if(ld->rw_head < 0) ld->rw_head += ld->loop_buf_size;
+    }else {
+      float lerp_ratio = ld->rw_head - (int)ld->rw_head;
+      float prev_sample = ld->buf[(int)ld->rw_head % ld->loop_buf_size];
+      float next_sample = ld->buf[((int)ld->rw_head + 1 ) % ld->loop_buf_size];
+      out_buf[i] = (1.0 - lerp_ratio) * prev_sample + (lerp_ratio * next_sample);
+      //linear interpolation:
+      //you have two points, you need a value in between, you guess the value by plotting a line between the points
+      ld->rw_head += ctl_rate;
       if(ld->loop_length > 0){
-        ld->rw_head %= ld->loop_length;
-      }else {
-        ld->rw_head %= ld->loop_buf_size;
+        if(ld->rw_head > ld->loop_length) ld->rw_head -= ld->loop_length;
+        if(ld->rw_head < 0) ld->rw_head += ld->loop_length;
+      }else{
+        if(ld->rw_head > ld->loop_buf_size) ld->rw_head -= (float)ld->loop_buf_size;
+        if(ld->rw_head < 0) ld->rw_head += ld->loop_buf_size;
       }
     }
   }
@@ -57,18 +68,29 @@ void process_looper(struct node *self) {
 void destroy_looper(struct node *self) {
   destroy_inlets(self);
   destroy_outlets(self);
+  free(self->controls);
   looper_data *ld = self->data;
   free(ld->buf);
   free(self->data);
 }
 
 node *new_looper(const patch *p) {
-  node *n = init_node(p, 2, 1);
+  node *n = init_node(p, 2, 1, 2);
   n->data = new_looper_data(p);
   n->process = &process_looper;
   n->destroy = &destroy_looper;
-  init_inlet(n, 0, "in", 0.0);
-  init_inlet(n, 1, "trig", 0.0);
-  init_outlet(n, 0, "out");
+
+  //in
+  init_inlet(p, n, 0);
+  //trig
+  init_inlet(p, n, 1);
+
+  //out
+  init_outlet(p, n, 0);
+
+  //rate
+  n->controls[0].val = 1.0;
+  //trig
+  n->controls[1].val = 0.0;
   return n;
 }

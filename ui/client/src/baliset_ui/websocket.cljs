@@ -52,6 +52,11 @@
    (.send @sock (.stringify js/JSON #js {:route "/node/move" :node_id id :x x :y y}))))
 
 (rf/reg-fx
+ :ws-control-node
+ (fn [[node-id ctl-id val]]
+   (.send @sock (.stringify js/JSON #js {:route "/node/control" :node_id node-id :control_id ctl-id :value val}))))
+
+(rf/reg-fx
  :ws-connect
  (fn [[out-node-id outlet-idx in-node-id inlet-idx]]
    (.send @sock (.stringify js/JSON #js {:route "/node/connect"

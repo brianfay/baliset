@@ -1,5 +1,7 @@
 {
   "name": "looper",
   "inlets": ["in", "trig"],
-  "outlets": ["out"]
+  "outlets": ["out"],
+  "controls": [{"name": "rate", "type": "hslider", "range": [-2.0, 2.0], "default": 1.0},
+               {"name": "trig", "type": "trigger"}]
 }

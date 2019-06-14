@@ -22,7 +22,7 @@
              :outlet-offset {}
              :selected-io nil
              :selected-node nil
-             :left-nav-expanded? false)))
+             :app-panel-expanded? false)))
 
 (defonce db-init (rf/dispatch-sync [:initialize-db]))
 
@@ -80,14 +80,21 @@
      (assoc db :selected-add-btn node-name))))
 
 (rf/reg-event-db
- :clicked-minimized-left-nav
+ :clicked-minimized-app-panel
  (fn [db _]
-   (assoc db :left-nav-expanded? true)))
+   (assoc db :app-panel-expanded? true)))
 
 (rf/reg-event-db
- :clicked-expanded-left-nav
+ :clicked-minimized-node-panel
  (fn [db _]
-   (assoc db :left-nav-expanded? false)))
+   (assoc db :node-panel-expanded? true)))
+
+(rf/reg-event-db
+ :clicked-expanded-app-panel
+ (fn [db _]
+   (assoc db
+          :selected-add-btn nil
+          :app-panel-expanded? false)))
 
 ;;cases
 ;;nothing selected
@@ -163,7 +170,9 @@
                   :default
                   {:db (assoc db
                               :selected-io nil
-                              :selected-node nil)})))))
+                              ;; :node-panel-expanded? nil
+                              ;; :selected-node nil
+                              )})))))
 
 
 (rf/reg-event-db
@@ -239,6 +248,56 @@
    (-> db
        (assoc-in [:nodes id :x] x)
        (assoc-in [:nodes id :y] y))))
+
+(rf/reg-event-fx
+ :set-control
+ (fn [{:keys [db]} [_ node-id ctl-id ctl-val]]
+   {:db (assoc-in db [:control-value node-id ctl-id] ctl-val)}))
+
+(rf/reg-event-fx
+ :drag-hslider
+ (fn [{:keys [db]} [_ node-type node-id ctl-id delta width]]
+   (let [ctl-metadata (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)
+         [min max] (or (get ctl-metadata "range") [0.0 1.0])
+         percent (or (get-in db [:hslider-percent node-id ctl-id])
+                     (/ (- (get ctl-metadata "default") min) (- max min))
+                     0.0)
+         percent-moved (/ delta width)
+         new-percent (+ percent percent-moved)]
+     (cond (< 1.0 new-percent)
+           {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] (- 1.0 percent))
+            :ws-control-node [node-id ctl-id max]}
+
+           (> 0.0 new-percent)
+           {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] (- 0.0 percent))
+            :ws-control-node [node-id ctl-id min]}
+
+           :else
+           {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] percent-moved)
+            :ws-control-node [node-id ctl-id (+ min (* (- max min) new-percent))]}))))
+
+(rf/reg-event-db
+ :finish-dragging-hslider
+ (fn [db [_ node-type node-id ctl-id]]
+   (let [ctl-metadata (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)
+         [min max] (or (get ctl-metadata "range") [0.0 1.0])
+         percent (or (get-in db [:hslider-percent node-id ctl-id])
+                     (/ (- (get ctl-metadata "default") min) (- max min))
+                     0.0)
+         percent-offset (or (get-in db [:hslider-percent-offset node-id ctl-id])
+                            0.0)
+         new-percent (+ percent percent-offset)]
+     (-> db
+         (assoc-in [:hslider-percent node-id ctl-id] (cond (< 1.0 new-percent) 1.0
+                                                           (> 0.0 new-percent) 0.0
+                                                           :else new-percent))
+         (assoc-in [:hslider-percent-offset node-id ctl-id] 0.0)))))
+
+(comment
+  (get-in db [:control-value ])
+  (assoc-in db [:control-value node-id ctl-id] ctl-val)
+  (assoc-in db [:ctl-value node-id ctl-id] ctl-val)
+  )
 
 (rf/reg-event-db
  :pan-camera

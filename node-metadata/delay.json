@@ -1,5 +1,7 @@
 {
   "name": "delay",
-  "inlets": ["in", "delay_time", "feedback"],
-  "outlets": ["out"]
+  "inlets": ["in"],
+  "outlets": ["out"],
+  "controls": [{"name": "delay_time", "duplicates": "delay_time", "type": "hslider", "range": [0.1, 3.0], "default": 0.5},
+               {"name": "feedback", "duplicates": "feedback", "type": "hslider", "range": [0.0, 1.0], "default": 0.6}]
 }

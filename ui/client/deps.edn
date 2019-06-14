@@ -1,5 +1,5 @@
 {:deps {org.clojure/clojurescript {:mvn/version "1.10.516"}
-        com.bhauman/figwheel-main {:mvn/version "0.2.0"}
+        com.bhauman/figwheel-main {:mvn/version "0.2.1-SNAPSHOT"}
         re-frame {:mvn/version "0.10.6"}
         day8.re-frame/http-fx {:mvn/version "0.1.6"}
         cljsjs/hammer {:mvn/version "2.0.8-0"}}

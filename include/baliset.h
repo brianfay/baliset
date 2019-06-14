@@ -31,11 +31,9 @@ typedef struct connection {
 
 typedef struct {
   float *buf;
-  float val; //if there is nothing connected, this value will be used, might swap this concept out for a "control" eventually
   int buf_size;
   int num_connections;
   connection *connections;
-  char *name;
 } inlet;
 
 typedef struct {
@@ -43,12 +41,10 @@ typedef struct {
   int buf_size;
   int num_connections;
   connection *connections;
-  char *name;
 } outlet;
 
 typedef struct {
   float val;
-  char *name;
 } control;
 
 //private data that will be different for different types of nodes
@@ -98,11 +94,11 @@ typedef struct patch {
 
 node *new_node(const patch *p, const char *type);
 
-node *init_node(const patch *p, int num_inlets, int num_outlets);
+node *init_node(const patch *p, int num_inlets, int num_outlets, int num_controls);
 
-void init_inlet(node *n, int idx, char *name, float default_val);
+void init_inlet(const patch *p, node *n, int idx);
 
-void init_outlet(node *n, int idx, char *name);
+void init_outlet(const patch *p, node *n, int idx);
 
 patch *new_patch(audio_options audio_opts);
 

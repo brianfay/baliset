@@ -14,12 +14,13 @@ void process_delay(struct node *self) {
   float *out_buf = o_out.buf;
   float *in_buf = self->inlets[0].buf;
   float *delay_line = data->delay_line;
-  inlet i_delay_time = self->inlets[1];
-  inlet i_feedback = self->inlets[2];
+  /* inlet i_delay_time = self->inlets[1]; */
+  /* inlet i_feedback = self->inlets[2]; */
+  float delay_time = self->controls[0].val;
+  float feedback = self->controls[1].val;
 
   for(int i = 0; i < o_out.buf_size; i++) {
     float in = in_buf[i];
-    float delay_time = (i_delay_time.num_connections > 0) ? i_delay_time.buf[i] : i_delay_time.val;
     if(delay_time < 0.0) delay_time = 0.0;
     if(delay_time > data->max_delay_seconds) delay_time = (float)data->max_delay_seconds;
     //TODO lerp, lopass filter?
@@ -31,7 +32,6 @@ void process_delay(struct node *self) {
     float out = in + delay_line[read_head];
     out_buf[i] = out;
 
-    float feedback = (i_feedback.num_connections > 0) ? i_feedback.buf[i] : i_feedback.val;
     if(feedback < 0.0) feedback = 0.0;
     if(feedback > 1.0) feedback = 1.0;
     /* //write the input to the delay_line */
@@ -45,6 +45,7 @@ void process_delay(struct node *self) {
 void destroy_delay(struct node *self) {
   destroy_inlets(self);
   destroy_outlets(self);
+  free(self->controls);
   delay_data *data = (delay_data*) self->data;
   free(data->delay_line);
   free(data);
@@ -61,13 +62,22 @@ delay_data *new_delay_data(const patch *p){
 }
 
 node *new_delay(const patch *p) {
-  node *n = init_node(p, 3, 1);
+  node *n = init_node(p, 1, 1, 2);
   n->data = new_delay_data(p);
   n->process = &process_delay;
   n->destroy = &destroy_delay;
-  init_inlet(n, 0, "in", 0.0);
-  init_inlet(n, 1, "delay_time", 0.25);
-  init_inlet(n, 2, "feedback", 0.6);
-  init_outlet(n, 0, "out");
+
+  //in
+  init_inlet(p, n, 0);
+  /* init_inlet(n, 1, "delay_time", 0.25); */
+  /* init_inlet(n, 2, "feedback", 0.6); */
+
+  //delay_time
+  n->controls[0].val = 0.25;
+  //feedback
+  n->controls[1].val = 0.6;
+
+  //out
+  init_outlet(p, n, 0);
   return n;
 }

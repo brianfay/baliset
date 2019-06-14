@@ -1,4 +1,5 @@
 {
   "name": "dac",
-  "inlets": ["l", "r"]
+  "inlets": ["l", "r"],
+  "controls": [{"name": "volume", "type": "hslider", "range": [0.0, 1.0]}]
 }

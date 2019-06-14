@@ -12,7 +12,7 @@ exports.getConnections = () => connections;
 
 exports.addNode = function(n) {
   let node_id = last_node_id++;
-  nodes[node_id] = {"type": n.type, "x": n.x, "y": n.y};
+  nodes[node_id] = {"type": n.type, "x": n.x, "y": n.y, "controls": {}};
   return node_id;
 }
 
@@ -41,6 +41,13 @@ exports.moveNode = function(msg) {
     nodes[msg.node_id].y = msg.y;
   }
   return {"route": "/node/moved", "node_id": msg.node_id, "x": msg.x, "y": msg.y};
+}
+
+exports.controlNode = function(msg) {
+  let n = nodes[msg.node_id]
+  if(nodes[msg.node_id] !== undefined) {
+    nodes[msg.node_id].controls[msg.control_id] = msg.value;
+  }
 }
 
 function arrayEquals(arr1, arr2) {

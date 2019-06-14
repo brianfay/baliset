@@ -75,4 +75,6 @@ exports.controlNode = function(msg) {
   console.log(`sending ${JSON.stringify(oscMsg)}`);
   const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, 9000, baliset_host);
+  baliset_state.controlNode(msg);
+  return {"route": "/node/controlled", "node_id": msg.node_id, "control_id": msg.control_id, "value": msg.value}
 }
