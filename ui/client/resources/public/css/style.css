@@ -193,20 +193,26 @@ body {
     flex-direction: column;
 }
 
-svg.noclick {
-    pointer-events: none;
-}
 
 svg {
     z-index: -1;
     position: relative;
     overflow: visible;
+    pointer-events: visiblepainted;
+}
+
+svg.noclick {
+    pointer-events: none;
 }
 
 svg.hslider {
     width: 136px;
     height: 8px;
     cursor: pointer;
+    z-index: 3;
+}
+
+svg.trigger {
     z-index: 3;
 }
 

@@ -276,6 +276,11 @@
            {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] percent-moved)
             :ws-control-node [node-id ctl-id (+ min (* (- max min) new-percent))]}))))
 
+(rf/reg-event-fx
+ :trigger
+ (fn [_ [_ node-id ctl-id ctl-val]]
+   {:ws-control-node [node-id ctl-id ctl-val]}))
+
 (rf/reg-event-db
  :finish-dragging-hslider
  (fn [db [_ node-type node-id ctl-id]]

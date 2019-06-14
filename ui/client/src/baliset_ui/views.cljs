@@ -210,7 +210,16 @@
             [:circle {:cx (+ x-off (* percentage width)) :cy (+ y-off (/ height 2)) :r 7 :fill "#2bb"}]]]))})))
 
 (defn trigger [node-info ctl-id ctl]
-  [:div "todo: trigger"])
+  (let [triggered? (re/atom nil)]
+    (fn [node-info ctl-id ctl]
+      [:svg.trigger [:g {:on-mouse-down (fn [e]
+                                          (reset! triggered? true)
+                                          (rf/dispatch [:trigger (:id node-info) ctl-id 1.0]))
+                         :on-mouse-up (fn [e]
+                                        (reset! triggered? false)
+                                        (rf/dispatch [:trigger (:id node-info) ctl-id 0.0]))}
+                     [:rect.raised {:x 4 :y 6 :width 32 :height 32 :fill "#333"}]
+                     (when @triggered? [:rect.raised {:x 7 :y 9 :width 26 :height 26 :fill "#2bb"}])]])))
 
 (defn control [node-info ctl-id ctl]
   [:div.ctl
