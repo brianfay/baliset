@@ -1,7 +1,9 @@
 # baliset
-A realtime audio patching program, written in C.
+An program that lets you build up an audio graph for live processing, by connecting nodes in a web interface. This may be used for example, to set up a virtual guitar pedalboard, controlled via a tablet.
 
-Uses [TinyPipe](https://github.com/mhroth/tinypipe) and [TinyOSC](https://github.com/mhroth/tinyosc) by Martin Roth
+Not really ready for public consumption, but you are welcome to check it out and do whatever you want with it.
+
+Uses [TinyPipe](https://github.com/mhroth/tinypipe) and [TinyOSC](https://github.com/mhroth/tinyosc) by Martin Roth, which I copied into the repo, and relies on Paul Batchelor's [Soundpipe](https://github.com/PaulBatchelor/Soundpipe), which you will need to install.
 
 Supported platforms are desktop via Portaudio, and [Bela](bela.io)
 
