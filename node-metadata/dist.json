@@ -1,0 +1,9 @@
+{
+  "name": "dist",
+  "inlets": ["in"],
+  "outlets": ["out"],
+  "controls": [{"name": "pregain", "type": "hslider", "range": [0.0, 3.0], "default": 2.0},
+               {"name": "postgain", "type": "hslider", "range": [0.0, 1.0], "default": 0.5},
+               {"name": "shape1", "type": "hslider", "range": [0.0, 2.0], "default": 0.0},
+               {"name": "shape2", "type": "hslider", "range": [0.0, 2.0], "default": 0.0}]
+}

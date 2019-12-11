@@ -1,7 +1,7 @@
 BUILDDIR = build
 TINYOSC = tinyosc
 TINYPIPE = tinypipe
-CFLAGS = -Wall -Iinclude -I$(TINYOSC) -I$(TINYPIPE) -lm
+CFLAGS = -Wall -Iinclude -I$(TINYOSC) -I$(TINYPIPE) -lm -lsoundpipe -lsndfile
 
 CC=cc
 CXX=clang++
@@ -18,7 +18,7 @@ endif
 NODE_TARGETS = $(NODE_SRC:nodes/%.c=$(BUILDDIR)/%.o)
 
 ifeq ($(BALISET_ENV),bela)
-	CFLAGS += -DBELA -I/root/Bela/include -L/root/Bela/lib -lbela -O3 -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ftree-vectorize -ffast-math -DNDEBUG
+	CFLAGS += -DBELA -I/root/Bela/include -L/root/Bela/lib -L/root/Bela/libraries -lbela -lbelaextra -O3 -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ftree-vectorize -ffast-math -DNDEBUG
 else
 	CFLAGS += -O3 -g -lportaudio
 endif
