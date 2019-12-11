@@ -171,17 +171,10 @@
                 (rf/dispatch [:clicked-delete-node-btn]))}
    "DELETE"])
 
-(defn minimized-node-panel [title]
-  [:div.minimized-node-panel
-   {:on-click (fn [e]
-                (.stopPropagation e)
-                (rf/dispatch [:clicked-minimized-node-panel]))}
-   [:p title]])
-
 (defn hslider [node-info ctl-id ctl]
   (let [x-off 4
         y-off 6
-        width 132
+        width 324
         height 8
         node-type (:type node-info)
         node-id (:id node-info)]
@@ -191,7 +184,7 @@
       (fn [this]
         (let [dom-node (re/dom-node this)
               ham-man (new js/Hammer.Manager dom-node)]
-          (.add ham-man (new js/Hammer.Pan #js {"event" "pan"}))
+          (.add ham-man (new js/Hammer.Pan #js {"event" "pan" "threshold" 0}))
           (.on ham-man "pan panstart panend pancancel"
                (fn [ev]
                  (if (goo/get ev "isFinal")
@@ -250,9 +243,6 @@
            [:h1 (str (:type node-info) " " (:id node-info))]
            [controls node-info]
            [delete-node-btn]]
-
-          node-info
-          [minimized-node-panel (str (:type node-info) " " (:id node-info))]
 
           :default
           [:div])))

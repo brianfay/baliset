@@ -222,7 +222,11 @@
 (rf/reg-event-db
  :clicked-node-header
  (fn [db [_ id]]
-   (assoc db :selected-node id)))
+   (assoc db
+          :selected-node id
+          :node-panel-expanded? (if (= id (:selected-node db))
+                                  (not (:node-panel-expanded? db))
+                                  true))))
 
 (rf/reg-event-fx
  :clicked-delete-node-btn
