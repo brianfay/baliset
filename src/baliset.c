@@ -185,6 +185,9 @@ node *new_node(const patch *p, const char *type) {
   if(strcmp(type, "dac") == 0) {
     return new_dac(p);
   }
+  if(strcmp(type, "dist") == 0) {
+    return new_dist(p);
+  }
   if(strcmp(type, "delay") == 0) {
     return new_delay(p);
   }
