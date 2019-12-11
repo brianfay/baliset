@@ -142,6 +142,7 @@ node *new_sin_osc(const patch *p);
 node *new_adc(const patch *p);
 node *new_dac(const patch *p);
 node *new_delay(const patch *p);
+node *new_dist(const patch *p);
 node *new_mul(const patch *p);
 node *new_looper(const patch *p);
 #ifdef BELA
