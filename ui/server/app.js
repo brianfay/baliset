@@ -47,6 +47,32 @@ wss.notifyOtherClients = function(ws, data) {
   });
 }
 
+function ensurePatchesDir() {
+  if(!fs.existsSync("patches")) {
+    fs.mkdirSync("patches");
+  }
+}
+
+function savePatch(msg) {
+  const path = "patches/" + msg.name + '.json';
+  ensurePatchesDir();
+  const writeStream = fs.createWriteStream(path);
+  let patch = baliset_state.getPatch();
+  patch.name = msg.name;
+  writeStream.write(JSON.stringify(patch));
+  writeStream.end();
+  console.log(`saved patch: ${msg.name}`);
+  return {"route": "/patch/saved", "name": msg.name};
+}
+
+function loadPatch(msg) {
+  const path = "patches/" + msg.name + '.json';
+  const patch = JSON.parse(fs.readFileSync(path));
+  osc_client.loadPatch(patch);
+  baliset_state.loadPatch(patch);
+  console.log(`loaded patch: ${msg.name}`);
+}
+
 function messageHandler(ws) {
   const handler = function(msg) {
     msg = JSON.parse(msg);
@@ -68,7 +94,7 @@ function messageHandler(ws) {
       }
       case "/node/control": {
         const clientMsg = osc_client.controlNode(msg);
-        //wss.notifyOtherClients(clientMsg);
+        wss.notifyOtherClients(ws, clientMsg);
         break;
       }
       case "/node/disconnect": {
@@ -84,6 +110,18 @@ function messageHandler(ws) {
       case "/node/move": {
         const clientMsg = baliset_state.moveNode(msg);
         wss.notifyOtherClients(ws, clientMsg);
+        break;
+      }
+      case "/patch/save": {
+        const patchSavedMsg = savePatch(msg);
+        wss.broadcast(patchSavedMsg);
+        break;
+      }
+      case "/patch/load": {
+        loadPatch(msg);
+        wss.broadcast({"route": "/app_state",
+                       "nodes": baliset_state.getNodes(),
+                       "connections": baliset_state.getConnections()});
         break;
       }
       default:

@@ -44,8 +44,8 @@
                (fn [m k v]
                  (assoc m (js/parseInt (name k)) v))
                {}
-               (js->clj (goo/get resp "nodes") :keywordize-keys true)))
-       (update :connections into (js->clj (goo/get resp "connections"))))))
+               (js->clj (goo/get resp "nodes") :keywordize-keys true))
+              :connections (set (js->clj (goo/get resp "connections")))))))
 
 (rf/reg-event-db
  :node-metadata-failure ;;TODO

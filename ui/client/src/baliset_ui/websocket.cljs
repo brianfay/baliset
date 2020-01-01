@@ -24,6 +24,11 @@
                     (goo/get msg "in_node_id") (goo/get msg "inlet_idx")])
       "/node/moved"
       (rf/dispatch [:move-node (goo/get msg "node_id") (goo/get msg "x") (goo/get msg "y")])
+
+      "/node/controlled"
+      (rf/dispatch [:set-control (goo/get msg "node_id") (goo/get msg "control_id") (goo/get msg "value")])
+
+      ;;TODO do something on /patch/saved
       (println "unrecognized msg: " msg))))
 
 (defn connect []
@@ -82,4 +87,8 @@
   (rf/dispatch [:clicked-add-node "adc" (rand-int 500) (rand-int 500)])
   (rf/dispatch [:clicked-add-node "delay" (rand-int 500) (rand-int 500)])
   (rf/dispatch [:clicked-add-node "looper" (rand-int 500) (rand-int 500)])
+  (.send @sock (.stringify js/JSON #js {:route "/patch/save" :name "patchy"}))
+  (.send @sock (.stringify js/JSON #js {:route "/patch/load" :name "patchy"}))
+  (.send @sock (.stringify js/JSON #js {:route "/patch/save" :name "sine"}))
+  (.send @sock (.stringify js/JSON #js {:route "/patch/load" :name "sine"}))
   )
