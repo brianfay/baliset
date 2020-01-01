@@ -1,0 +1,9 @@
+[Unit]
+Description=Start baliset in a screen session
+
+[Service]
+Type=forking
+ExecStart=/root/baliset/bela/start-screen.sh
+
+[Install]
+WantedBy=multi-user.target
