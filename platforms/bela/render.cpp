@@ -11,7 +11,7 @@ typedef struct
   int state;
 } Button;
 
-patch *p;
+blst_system *bs;
 int debounce_frames;
 Button btn1, btn2, btn3;
 AuxiliaryTask oscServerTask;
@@ -63,12 +63,9 @@ bool setup(BelaContext *context, void *userData)
   audio_options audio_opts = {.buf_size=context->audioFrames, .sample_rate=context->audioSampleRate,
                               .hw_in_channels=context->audioInChannels, .hw_out_channels=context->audioOutChannels,
                               .digital_channels=3, .digital_frames=context->audioFrames}; //using audioFrames buffer size instead of digital
-  p = new_patch(audio_opts);
+  bs = new_blst_system(audio_opts);
 
-  sort_patch(p);
-  printf("sorted patch\n");
-
-  if((oscServerTask = Bela_createAuxiliaryTask((void(*)(void*))&run_osc_server, 80, "osc-server", (void *)p)) == 0) return false;
+  if((oscServerTask = Bela_createAuxiliaryTask((void(*)(void*))&run_osc_server, 80, "osc-server", (void *)bs)) == 0) return false;
   Bela_scheduleAuxiliaryTask(oscServerTask);
 	return true;
 }
@@ -83,9 +80,9 @@ void render(BelaContext *context, void *userData)
   //upsample
   if(context->digitalFrames == context->audioFrames) {
     for(int i=0; i < context->digitalFrames; i++) {
-      p->digital_outlets[0].buf[i] = getButtonValue(context, i, &btn1);
-      p->digital_outlets[1].buf[i] = getButtonValue(context, i, &btn2);
-      p->digital_outlets[2].buf[i] = getButtonValue(context, i, &btn3);
+      bs->p->digital_outlets[0].buf[i] = getButtonValue(context, i, &btn1);
+      bs->p->digital_outlets[1].buf[i] = getButtonValue(context, i, &btn2);
+      bs->p->digital_outlets[2].buf[i] = getButtonValue(context, i, &btn3);
     }
   } else if (context->digitalFrames < context->audioFrames) {
     //assuming both are powers of two
@@ -95,23 +92,23 @@ void render(BelaContext *context, void *userData)
     for(int i=0; i < context->audioFrames; i++){
       //calling getButtonValue for each of these is probably more expensive than this needs to be
       //but I think it's fine
-      p->digital_outlets[0].buf[i] = getButtonValue(context, i >> shift_amount, &btn1);
-      p->digital_outlets[0].buf[i] = getButtonValue(context, i >> shift_amount, &btn2);
-      p->digital_outlets[0].buf[i] = getButtonValue(context, i >> shift_amount, &btn3);
+      bs->p->digital_outlets[0].buf[i] = getButtonValue(context, i >> shift_amount, &btn1);
+      bs->p->digital_outlets[0].buf[i] = getButtonValue(context, i >> shift_amount, &btn2);
+      bs->p->digital_outlets[0].buf[i] = getButtonValue(context, i >> shift_amount, &btn3);
     }
     //not handling the case where digitalFrames > audioFrames because that shouldn't happen
   }
 
   for(int i=0; i < context->audioFrames; i++) {
-    p->hw_outlets[0].buf[i] = *in++;
-    p->hw_outlets[1].buf[i] = *in++;
+    bs->p->hw_outlets[0].buf[i] = *in++;
+    bs->p->hw_outlets[1].buf[i] = *in++;
   }
 
-  process_patch(p);
+  blst_process(bs);
 
   for(int i=0; i < context->audioFrames; i++) {
     for (unsigned int channel = 0; channel < context->audioOutChannels; channel++) {
-      audioWrite(context, i, channel, p->hw_inlets[channel].buf[i]);
+      audioWrite(context, i, channel, bs->p->hw_inlets[channel].buf[i]);
     }
   }
 }
@@ -120,7 +117,7 @@ void cleanup(BelaContext *context, void *userData)
 {
   Bela_stopAllAuxiliaryTasks();
   Bela_deleteAllAuxiliaryTasks();
-  free_patch(p);
+  free_blst_system(bs);
 }
 
 void interrupt_handler(int)

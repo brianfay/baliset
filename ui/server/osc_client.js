@@ -79,12 +79,12 @@ exports.controlNode = function(msg) {
   return {"route": "/node/controlled", "node_id": msg.node_id, "control_id": msg.control_id, "value": msg.value}
 }
 
-
 exports.loadPatch = function(patch) {
-  //TODO free patch
   let oscElements = [];
   let nodeIdMap = {};
   let currentNodeId = 0;
+
+  oscElements.push({address: '/patch/free', args: null});
 
   for (const id in patch.nodes) {
     const node_id = currentNodeId++;

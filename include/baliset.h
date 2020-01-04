@@ -75,11 +75,11 @@ struct int_stack {
 };
 
 typedef struct patch {
+  audio_options audio_opts;
   //hashtable of nodes
   node_table table;
   struct int_stack order;
   int next_id; //should monotonically increase
-  audio_options audio_opts;
   //it's kind of confusing, but hw_inlets are the audio outputs
   //hw_outlets are the audio inputs
   inlet *hw_inlets;
@@ -88,8 +88,14 @@ typedef struct patch {
   //TODO might want digital inlets, and analog inlets/outlets
 #endif
   outlet *hw_outlets;
-  TinyPipe consumer_pipe, producer_pipe;
 } patch;
+
+//top level app state
+typedef struct blst_system {
+  audio_options audio_opts;
+  patch *p;
+  TinyPipe consumer_pipe, producer_pipe;
+} blst_system;
 
 node *new_node(const patch *p, const char *type);
 
@@ -98,6 +104,8 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
 void init_inlet(const patch *p, node *n, int idx);
 
 void init_outlet(const patch *p, node *n, int idx);
+
+blst_system *new_blst_system(audio_options audio_opts);
 
 patch *new_patch(audio_options audio_opts);
 
@@ -115,6 +123,8 @@ void free_node(node *n);
 
 void free_patch(patch *p);
 
+void free_blst_system(blst_system *p);
+
 //TODO error handling
 void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
              unsigned int in_node_id, unsigned int inlet_id);
@@ -124,7 +134,7 @@ void blst_disconnect(patch *p, unsigned int out_node_id,
 
 void sort_patch(patch *p);
 
-void process_patch(patch *p);
+void blst_process(blst_system *bs);
 
 void set_control(node *n, int ctl_id, float val);
 
@@ -134,7 +144,7 @@ void set_control(node *n, int ctl_id, float val);
 
 void no_op(struct node *self);
 
-void run_osc_server(patch *p);
+void run_osc_server(blst_system *bs);
 void stop_osc_server();
 
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C

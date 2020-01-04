@@ -10,20 +10,20 @@ static int audioCallback (const void *inputBuffer, void *outputBuffer,
                          void *userData) {
   float *in = (float*)inputBuffer;
 
-  patch *p = (patch*) userData;
+  blst_system *bs = (blst_system*) userData;
 
   for(int i=0; i < framesPerBuffer; i++) {
-    p->hw_outlets[0].buf[i] = *in++;
-    p->hw_outlets[1].buf[i] = *in++;
+    bs->p->hw_outlets[0].buf[i] = *in++;
+    bs->p->hw_outlets[1].buf[i] = *in++;
   }
 
-  process_patch(p);
+  blst_process(bs);
 
   float *out = (float*)outputBuffer;
 
   for(int i=0; i < framesPerBuffer; i++) {
-    *out++ = p->hw_inlets[0].buf[i];
-    *out++ = p->hw_inlets[1].buf[i];
+    *out++ = bs->p->hw_inlets[0].buf[i];
+    *out++ = bs->p->hw_inlets[1].buf[i];
   }
   return 0;
 }
@@ -33,7 +33,7 @@ int main() {
   /* FM-y example*/
   audio_options a = {.buf_size = 64, .sample_rate = 44100,
                      .hw_in_channels = 2, .hw_out_channels = 2};
-  patch *p = new_patch(a);
+  blst_system *bs = new_blst_system(a);
   /* node *sin = new_sin_osc(p); */
   /* node *lfo = new_sin_osc(p); */
   /* node *lfo2 = new_sin_osc(p); */
@@ -51,8 +51,7 @@ int main() {
   /* blst_connect(p, sin->id, 0, dac->id, 1); */
 
   /* sort_patch(p); */
-  pa_run(audioCallback, p);
-
+  pa_run(audioCallback, bs);
 
   /*
   audio_options a = {.buf_size = 64, .sample_rate = 44100,
@@ -82,9 +81,9 @@ int main() {
   pa_run(audioCallback, p);
   */
 
-  run_osc_server(p);
+  run_osc_server(bs);
 
   /* while(1) {Pa_Sleep(3000);} */
 
-  free_patch(p);
+  free_blst_system(bs);
 }

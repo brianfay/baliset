@@ -3,6 +3,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include "tinyosc.h"
 
@@ -12,6 +13,7 @@ enum rt_msg_type {
   CONNECT,
   DISCONNECT,
   CONTROL,
+  REPLACE_PATCH,
 };
 
 enum non_rt_msg_type {
@@ -45,6 +47,12 @@ struct disconnect_msg {
   int32_t inlet_idx;
 };
 
+struct replace_patch_msg {
+  int *done;
+  patch *new_p;
+  patch **old_p;
+};
+
 struct free_ptr_msg {
   void *ptr;
 };
@@ -62,6 +70,7 @@ struct rt_msg {
     struct connect_msg connect_msg;
     struct disconnect_msg disconnect_msg;
     struct control_msg control_msg;
+    struct replace_patch_msg replace_patch_msg;
   };
 };
 
@@ -74,8 +83,18 @@ struct non_rt_msg {
   };
 };
 
-void free_connections(outlet out) {
+void free_outlet_connections(outlet out) {
   connection *ptr = out.connections;
+  connection *prev;
+  while(ptr) {
+    prev = ptr;
+    ptr = ptr->next;
+    free(prev);
+  }
+}
+
+void free_inlet_connections(inlet in) {
+  connection *ptr = in.connections;
   connection *prev;
   while(ptr) {
     prev = ptr;
@@ -86,6 +105,7 @@ void free_connections(outlet out) {
 
 void destroy_inlets(node *n) {
   for(int i = 0; i < n->num_inlets; i++) {
+    free_inlet_connections(n->inlets[i]);
     free(n->inlets[i].buf);
   }
   free(n->inlets);
@@ -93,7 +113,7 @@ void destroy_inlets(node *n) {
 
 void destroy_outlets(node *n) {
   for(int i = 0; i < n->num_outlets; i++) {
-    free_connections(n->outlets[i]);
+    free_outlet_connections(n->outlets[i]);
     free(n->outlets[i].buf);
   }
   free(n->outlets);
@@ -248,9 +268,6 @@ patch *new_patch(audio_options audio_opts) {
     p->hw_outlets[i].connections = NULL;
   }
 
-  tpipe_init(&p->consumer_pipe, 1024 * 10);
-  tpipe_init(&p->producer_pipe, 1024 * 10);
-
 #ifdef BELA
   p->digital_outlets = malloc(sizeof(outlet) * audio_opts.digital_channels);
   for(int i = 0; i < audio_opts.digital_channels; i++){
@@ -261,6 +278,15 @@ patch *new_patch(audio_options audio_opts) {
   }
 #endif
   return p;
+}
+
+blst_system *new_blst_system(audio_options audio_opts) {
+  blst_system *bs = malloc(sizeof(blst_system));
+  bs->audio_opts = audio_opts;
+  bs->p = new_patch(audio_opts);
+  tpipe_init(&bs->consumer_pipe, 1024 * 10);
+  tpipe_init(&bs->producer_pipe, 1024 * 10);
+  return bs;
 }
 
 int detect_cycles(const patch *p, int out_node_id, int in_node_id, int outlet_idx, int inlet_idx){
@@ -381,9 +407,14 @@ void free_patch(patch *p) {
     free(p->hw_outlets[i].buf);
   }
   free(p->hw_outlets);
-  tpipe_free(&p->consumer_pipe);
-  tpipe_free(&p->producer_pipe);
   free(p);
+}
+
+void free_blst_system(blst_system *bs) {
+  free_patch(bs->p);
+  tpipe_free(&bs->consumer_pipe);
+  tpipe_free(&bs->producer_pipe);
+  free(bs);
 }
 
 void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
@@ -462,7 +493,8 @@ void set_control(node *n, int ctl_id, float val) {
   ctl->val = val;
 }
 
-void handle_rt_msg(patch *p, struct rt_msg *msg) {
+void handle_rt_msg(blst_system *bs, struct rt_msg *msg) {
+  patch *p = bs->p;
   switch(msg->type) {
     case ADD_NODE:
       add_node(p, msg->add_msg.node);
@@ -481,7 +513,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
                                                      i);
             struct free_ptr_msg f = {.ptr = d.in_conn};
             struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
-            tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
+            tpipe_write(&bs->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
             conn = conn->next;
           }
         }
@@ -493,7 +525,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
                                                      conn->io_id);
             struct free_ptr_msg f = {.ptr = d.in_conn};
             struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
-            tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
+            tpipe_write(&bs->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
             conn = conn->next;
           }
         }
@@ -501,7 +533,7 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
         remove_node(p, n);
         struct free_node_msg f = {.ptr = n};
         struct non_rt_msg msg = {.type = FREE_NODE, .free_node_msg = f};
-        tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
+        tpipe_write(&bs->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
         break;
       }
     case CONNECT:
@@ -516,28 +548,35 @@ void handle_rt_msg(patch *p, struct rt_msg *msg) {
                                                  msg->disconnect_msg.inlet_idx);
         struct free_ptr_msg f = {.ptr = d.in_conn};
         struct non_rt_msg msg = {.type = FREE_PTR, .free_ptr_msg = f};
-        tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
+        tpipe_write(&bs->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
         msg.free_ptr_msg.ptr = d.out_conn;
-        tpipe_write(&p->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
+        tpipe_write(&bs->producer_pipe, (char *)&msg, sizeof(struct non_rt_msg));
         break;
       }
-  case CONTROL:
-    set_control(get_node(p, msg->control_msg.node_id), msg->control_msg.ctl_id, msg->control_msg.val);
+    case CONTROL:
+      set_control(get_node(p, msg->control_msg.node_id), msg->control_msg.ctl_id, msg->control_msg.val);
+      break;
+    case REPLACE_PATCH: {
+      *msg->replace_patch_msg.old_p = p;
+      bs->p = msg->replace_patch_msg.new_p;
+      *msg->replace_patch_msg.done = 1;
     break;
-    default:
-      printf("handle_rt_msg: unrecognized msg_type\n");//TODO make some kind of exit handler
+  }
+  default:
+    printf("handle_rt_msg: unrecognized msg_type\n");//TODO make some kind of exit handler
   }
 }
 
-void process_patch(patch *p) {
-  while(tpipe_hasData(&p->consumer_pipe)){
+void blst_process(blst_system *bs) {
+  patch *p = bs->p;
+  while(tpipe_hasData(&bs->consumer_pipe)){
     int len = 0;
     char *buf = NULL;
-    buf = tpipe_getReadBuffer(&p->consumer_pipe, &len);
+    buf = tpipe_getReadBuffer(&bs->consumer_pipe, &len);
     assert(len > 0);
     assert(buf != NULL);
-    handle_rt_msg(p, (struct rt_msg*) buf);
-    tpipe_consume(&p->consumer_pipe);
+    handle_rt_msg(bs, (struct rt_msg*) buf);
+    tpipe_consume(&bs->consumer_pipe);
   }
   zero_all_inlets(p);
   int top = p->order.top;
@@ -564,14 +603,14 @@ void process_patch(patch *p) {
 
 void no_op(struct node *self) {return;}
 
-void handle_osc_message(patch *p, tosc_message *osc) {
+void handle_osc_message(blst_system *bs, tosc_message *osc) {
   char *address = tosc_getAddress(osc);
   if(strncmp(address, "/node/add", strlen("/node/add")) == 0) {
     const char *type = tosc_getNextString(osc);
-    node *n = new_node(p, type);
+    node *n = new_node(bs->p, type);
     struct add_msg body = {.node = n};
     struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
-    tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
+    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -589,7 +628,7 @@ void handle_osc_message(patch *p, tosc_message *osc) {
     in_conn->io_id = outlet_idx;
     struct connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
     struct rt_msg msg = {.type = CONNECT, .connect_msg = body};
-    tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
+    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/disconnect", strlen("/node/disconnect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -597,25 +636,42 @@ void handle_osc_message(patch *p, tosc_message *osc) {
     int32_t inlet_idx = tosc_getNextInt32(osc);
     struct disconnect_msg body = {.out_node_id = out_node_id, .outlet_idx = outlet_idx, in_node_id = in_node_id, inlet_idx = inlet_idx};
     struct rt_msg msg = {.type = DISCONNECT, .disconnect_msg = body};
-    tpipe_write(&p->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
+    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/delete", strlen("/node/delete")) == 0) {
     int32_t node_id = tosc_getNextInt32(osc);
     struct delete_msg body = {.node_id = node_id};
     struct rt_msg msg = {.type = DELETE_NODE, .delete_msg = body};
-    tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
   } else if(strncmp(address, "/node/control", strlen("/node/control")) == 0) {
     int32_t node_id = tosc_getNextInt32(osc);
     int32_t ctl_id = tosc_getNextInt32(osc);
     float val = tosc_getNextFloat(osc);
     struct control_msg body = {.node_id = node_id, .ctl_id = ctl_id, .val = val};
     struct rt_msg msg = {.type = CONTROL, .control_msg = body};
-    tpipe_write(&p->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+  } else if(strncmp(address, "/patch/free", strlen("/patch/free")) == 0) {
+    patch *new_p = new_patch(bs->audio_opts);
+    patch **old_p = malloc(sizeof(patch*));
+    int *done = malloc(sizeof(int));
+    *done = 0;
+    struct replace_patch_msg body = {.done = done,
+                                     .new_p = new_p,
+                                     .old_p = old_p};
+    struct rt_msg msg = {.type = REPLACE_PATCH,
+                         .replace_patch_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+    //busy wait for response - this may be a terrible idea, might really need to use atomic vars here but we'll see what happens
+    while(! *done) {
+      usleep(1000);
+    }
+    free_patch(*msg.replace_patch_msg.old_p);
+    usleep(100);
   } else {
     printf("unexpected message: %s\n", address);
   }
 }
 
-void handle_non_rt_msg(patch *p, struct non_rt_msg *msg) {
+void handle_non_rt_msg(blst_system *bs, struct non_rt_msg *msg) {
   switch(msg->type) {
     case FREE_PTR:
       printf("freeing pointer\n");
@@ -636,7 +692,7 @@ void stop_osc_server() {
   keepRunning = 0;
 }
 
-void run_osc_server(patch *p) {
+void run_osc_server(blst_system *bs) {
   const int fd = socket(AF_INET, SOCK_DGRAM, 0); //ip v4 datagram socket
   fcntl(fd, F_SETFL, O_NONBLOCK); // set the socket to non-blocking
   struct sockaddr_in sin;
@@ -650,14 +706,14 @@ void run_osc_server(patch *p) {
   char buffer[2048];
 
   while (keepRunning) {
-    while(tpipe_hasData(&p->producer_pipe)) {
+    while(tpipe_hasData(&bs->producer_pipe)) {
       int len = 0;
       char *buf = NULL;
-      buf = tpipe_getReadBuffer(&p->producer_pipe, &len);
+      buf = tpipe_getReadBuffer(&bs->producer_pipe, &len);
       assert(len > 0);
       assert(buf != NULL);
-      handle_non_rt_msg(p, (struct non_rt_msg*) buf);
-      tpipe_consume(&p->producer_pipe);
+      handle_non_rt_msg(bs, (struct non_rt_msg*) buf);
+      tpipe_consume(&bs->producer_pipe);
     }
 
     fd_set readSet;
@@ -675,12 +731,12 @@ void run_osc_server(patch *p) {
           /* const uint64_t timetag = tosc_getTimetag(&bundle); */
           tosc_message osc;
           while (tosc_getNextMessage(&bundle, &osc)) {
-            handle_osc_message(p, &osc);
+            handle_osc_message(bs, &osc);
           }
         } else {
           tosc_message osc;
           tosc_parseMessage(&osc, buffer, len);
-          handle_osc_message(p, &osc);
+          handle_osc_message(bs, &osc);
         }
       }
     }
