@@ -62,6 +62,19 @@ body {
     animation: app-panel-slide 0.25s forwards;
 }
 
+.app-panel-column {
+    float: left;
+    height: 100%;
+}
+
+.project {
+    background-color: #111;
+}
+
+.detail {
+    background-color: #000;
+}
+
 @keyframes app-panel-slide { 100% { left: 0;}}
 
 .minimized-app-panel {
@@ -87,6 +100,29 @@ body {
 .add-btn {
     user-select: none;
     background-color: #5B6976;
+    border: solid 1px;
+    text-align: left;
+    padding: 8px;
+    margin: 8px;
+}
+
+.menu-btn {
+    user-select: none;
+    background-color: #5B6976;
+    border: solid 1px;
+    text-align: left;
+    padding: 8px;
+    margin: 8px;
+}
+
+.patch-name-input {
+    padding: 8px;
+    margin: 8px;
+}
+
+.menu-btn.selected {
+    user-select: none;
+    background-color: #5E8FD1;
     border: solid 1px;
     text-align: left;
     padding: 8px;

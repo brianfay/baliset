@@ -28,6 +28,9 @@
       "/node/controlled"
       (rf/dispatch [:set-control (goo/get msg "node_id") (goo/get msg "control_id") (goo/get msg "value")])
 
+      "/patch/saved"
+      (rf/dispatch [:patch-saved (goo/get msg "name")])
+
       ;;TODO do something on /patch/saved
       (println "unrecognized msg: " msg))))
 
@@ -78,6 +81,16 @@
                                          :outlet_idx outlet-idx
                                          :in_node_id in-node-id
                                          :inlet_idx inlet-idx}))))
+
+(rf/reg-fx
+ :ws-load-patch
+ (fn [[patch-name]]
+   (.send @sock (.stringify js/JSON #js {:route "/patch/load" :name patch-name}))))
+
+(rf/reg-fx
+ :ws-save-patch
+ (fn [[patch-name]]
+   (.send @sock (.stringify js/JSON #js {:route "/patch/save" :name patch-name}))))
 
 (comment
   (close)

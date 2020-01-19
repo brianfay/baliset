@@ -94,10 +94,9 @@ exports.loadPatch = function(patch) {
     oscElements.push(add_node_msg);
     for (const ctl_id in patch.nodes[id].controls) {
       const ctl_value = patch.nodes[id].controls[ctl_id];
-      const control_msg = {oscType: 'message',
-                           address: '/node/control',
+      const control_msg = {address: '/node/control',
                            args: [{type: "integer", value: node_id},
-                                  {type: "integer", value: ctl_id},
+                                  {type: "integer", value: parseInt(ctl_id)},
                                   {type: "float",   value: ctl_value}]};
       oscElements.push(control_msg);
     }

@@ -2,7 +2,6 @@
   (:require [re-frame.core :as rf]
             [goog.object :as goo]))
 
-
 (rf/reg-sub
  :all-node-metadata
  (fn [db _]
@@ -60,6 +59,11 @@ rf/subscribe
  :node-panel-expanded?
  (fn [db _]
    (:node-panel-expanded? db)))
+
+(rf/reg-sub
+ :selected-detail
+ (fn [db _]
+   (:selected-detail db)))
 
 (rf/reg-sub
  :selected-io?
@@ -164,3 +168,13 @@ rf/subscribe
  (fn [db _]
    (+ (- (:pinch-scale db) 1)
       (:scale db))))
+
+(rf/reg-sub
+ :patches
+ (fn [db _]
+   (:patches db)))
+
+(rf/reg-sub
+ :patch-save-name
+ (fn [db _]
+   (:patch-save-name db)))

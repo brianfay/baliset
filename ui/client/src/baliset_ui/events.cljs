@@ -35,6 +35,29 @@
                           result)]
      (assoc db :node-metadata node-map))))
 
+(rf/reg-event-fx
+ :load-patch
+ (fn [_ [_ patch-name]]
+   {:ws-load-patch [patch-name]}))
+
+(rf/reg-event-fx
+ :save-patch
+ (fn [{:keys [db]} _]
+   (let [patch-save-name (:patch-save-name db)]
+     (if (not= patch-save-name "")
+       {:ws-save-patch [patch-save-name]}
+       {}))))
+
+(rf/reg-event-db
+ :patch-saved
+ (fn [db [_ patch-name]]
+   (assoc db :patches (set (conj (:patches db) patch-name)))))
+
+(rf/reg-event-db
+ :patch-save-name
+ (fn [db [_ patch-name]]
+   (assoc db :patch-save-name patch-name)))
+
 (rf/reg-event-db
  :app-state
  (fn [db [_ resp]]
@@ -45,7 +68,8 @@
                  (assoc m (js/parseInt (name k)) v))
                {}
                (js->clj (goo/get resp "nodes") :keywordize-keys true))
-              :connections (set (js->clj (goo/get resp "connections")))))))
+              :connections (set (js->clj (goo/get resp "connections")))
+              :patches (vec (goo/get resp "patches"))))))
 
 (rf/reg-event-db
  :node-metadata-failure ;;TODO
@@ -94,8 +118,25 @@
  (fn [db _]
    (assoc db
           :selected-add-btn nil
+          :selected-detail nil
           :app-panel-expanded? false)))
 
+(rf/reg-event-db
+ :clicked-nodes-btn
+ (fn [db _]
+   (if (= :nodes (:selected-detail db))
+     (assoc db
+            :selected-detail nil
+            :selected-add-btn nil)
+     (assoc db :selected-detail :nodes))))
+
+(rf/reg-event-db
+ :clicked-patches-btn
+ (fn [db _]
+   (assoc db :selected-detail
+          (if (= :patches (:selected-detail db))
+              nil
+              :patches))))
 ;;cases
 ;;nothing selected
 ;; select inlet

@@ -54,7 +54,8 @@ function ensurePatchesDir() {
 }
 
 function savePatch(msg) {
-  const path = "patches/" + msg.name + '.json';
+  const filename = msg.name + '.json';
+  const path = "patches/" + filename;
   ensurePatchesDir();
   const writeStream = fs.createWriteStream(path);
   let patch = baliset_state.getPatch();
@@ -62,15 +63,20 @@ function savePatch(msg) {
   writeStream.write(JSON.stringify(patch));
   writeStream.end();
   console.log(`saved patch: ${msg.name}`);
-  return {"route": "/patch/saved", "name": msg.name};
+  return {"route": "/patch/saved", "name": filename};
 }
 
 function loadPatch(msg) {
-  const path = "patches/" + msg.name + '.json';
+  const path = "patches/" + msg.name;
   const patch = JSON.parse(fs.readFileSync(path));
   osc_client.loadPatch(patch);
   baliset_state.loadPatch(patch);
   console.log(`loaded patch: ${msg.name}`);
+}
+
+function listPatches() {
+  const path = "patches/";
+  return fs.readdirSync(path);
 }
 
 function messageHandler(ws) {
@@ -121,13 +127,14 @@ function messageHandler(ws) {
         loadPatch(msg);
         wss.broadcast({"route": "/app_state",
                        "nodes": baliset_state.getNodes(),
-                       "connections": baliset_state.getConnections()});
+                       "connections": baliset_state.getConnections(),
+                       "patches": listPatches()});
         break;
       }
       default:
         console.log(`unrecognized websocket msg: ${msg.route}`);
       }
-  }
+  };
  return handler;
 }
 
@@ -139,8 +146,9 @@ wss.on("connection", function connection(ws) {
   ws.on("message", messageHandler(ws));
   ws.on("close", function close(){
     console.log("disconnected.");
-  })
+  });
   ws.send(JSON.stringify({"route": "/app_state",
                           "nodes": baliset_state.getNodes(),
-                          "connections": baliset_state.getConnections()}));
+                          "connections": baliset_state.getConnections(),
+                          "patches": listPatches()}));
 });

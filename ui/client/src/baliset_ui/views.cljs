@@ -148,21 +148,81 @@
                   [:line {:x1 0 :y1 10 :x2 24 :y2 10}]
                   [:line {:x1 0 :y1 16 :x2 24 :y2 16}]]]])
 
-(defn expanded-app-panel []
-  (let [node-types @(rf/subscribe [:node-types])]
-    [:div.app-panel
-     {:on-click #(rf/dispatch [:clicked-expanded-app-panel])}
+(defn nodes-btn []
+  (let [selected-detail @(rf/subscribe [:selected-detail])]
+    [(if (= :nodes selected-detail) :div.menu-btn.selected  :div.menu-btn)
+     {:on-click (fn [e] (.stopPropagation e)
+                  (rf/dispatch [:clicked-nodes-btn]))}
+     "nodes"]))
+
+(defn patches-btn []
+  (let [selected-detail @(rf/subscribe [:selected-detail])]
+    [(if (= :patches selected-detail) :div.menu-btn.selected :div.menu-btn)
+     {:on-click (fn [e] (.stopPropagation e)
+                  (rf/dispatch [:clicked-patches-btn]))}
+     "patches"]))
+
+(defn project-panel []
+  [:div.app-panel-column.project
+   [patches-btn]
+   [nodes-btn]])
+
+(defn nodes-detail []
+  [:div
+   (let [node-types @(rf/subscribe [:node-types])]
      (if node-types
        (for [t node-types]
          ^{:key (str "add-btn-" t)}
          [add-btn t])
-       [:div])]))
+       [:div]))])
+
+(defn patches-list []
+  (let [patches @(rf/subscribe [:patches])]
+    (def patches patches)
+    [:div
+     (doall (for [patch-name patches]
+              ^{:key (str "p." patch-name)}
+              [:div.menu-btn
+               {:on-click (fn [e] (.stopPropagation e)
+                            (rf/dispatch [:load-patch patch-name]))}
+               (.slice patch-name 0 -5)]))]))
+
+(defn patches-detail []
+  [:div
+   [:h1 "save:"]
+   [:input.patch-name-input {:type "text"
+                             :value @(rf/subscribe [:patch-save-name])
+                             :on-change #(rf/dispatch
+                                          [:patch-save-name (-> % .-target .-value)])
+                             :on-click (fn [e] (.stopPropagation e))}]
+   [:div.menu-btn {:on-click (fn [e]
+                               (.stopPropagation e)
+                               (rf/dispatch [:save-patch]))}
+    "save"]
+   [:h1 "load:"]
+   [patches-list]])
+
+(defn detail-panel []
+  [:div.app-panel-column.detail
+   (let [selected-detail @(rf/subscribe [:selected-detail])]
+     (case selected-detail
+       :nodes
+       [nodes-detail]
+
+       :patches
+       [patches-detail]
+       [:div]))])
+
+(defn expanded-app-panel []
+  [:div.app-panel
+   {:on-click #(rf/dispatch [:clicked-expanded-app-panel])}
+   [project-panel]
+   [detail-panel]])
 
 (defn app-panel []
   (if @(rf/subscribe [:app-panel-expanded?])
     [expanded-app-panel]
-    [minimized-app-panel]
-    ))
+    [minimized-app-panel]))
 
 (defn delete-node-btn []
   [:div.delete-btn
