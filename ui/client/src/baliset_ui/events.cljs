@@ -119,7 +119,8 @@
    (assoc db
           :selected-add-btn nil
           :selected-detail nil
-          :app-panel-expanded? false)))
+          :app-panel-expanded? false
+          :patch-save-name nil)))
 
 (rf/reg-event-db
  :clicked-nodes-btn

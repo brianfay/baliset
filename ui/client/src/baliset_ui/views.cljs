@@ -178,7 +178,6 @@
 
 (defn patches-list []
   (let [patches @(rf/subscribe [:patches])]
-    (def patches patches)
     [:div
      (doall (for [patch-name patches]
               ^{:key (str "p." patch-name)}
@@ -191,7 +190,6 @@
   [:div
    [:h1 "save:"]
    [:input.patch-name-input {:type "text"
-                             :value @(rf/subscribe [:patch-save-name])
                              :on-change #(rf/dispatch
                                           [:patch-save-name (-> % .-target .-value)])
                              :on-click (fn [e] (.stopPropagation e))}]
