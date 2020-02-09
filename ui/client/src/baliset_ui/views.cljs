@@ -298,7 +298,8 @@
     (cond (and node-info expanded?)
           [:div.node-panel
            {:on-click (fn [e] (.stopPropagation e))}
-           [:h1 (str (:type node-info) " " (:id node-info))]
+           [:h1 {:on-click #(rf/dispatch [:close-node-panel])}
+            (str (:type node-info) " " (:id node-info))]
            [controls node-info]
            [delete-node-btn]]
 

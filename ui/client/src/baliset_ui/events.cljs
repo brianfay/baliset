@@ -114,6 +114,11 @@
    (assoc db :node-panel-expanded? true)))
 
 (rf/reg-event-db
+ :close-node-panel
+ (fn [db _]
+   (assoc db :node-panel-expanded? nil)))
+
+(rf/reg-event-db
  :clicked-expanded-app-panel
  (fn [db _]
    (assoc db
