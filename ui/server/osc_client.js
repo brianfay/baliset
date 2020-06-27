@@ -4,15 +4,29 @@ const baliset_state = require("./baliset_state");
 const baliset_port = 7563;
 const baliset_host = "localhost";
 const baliset_remote_port = 9000;
+const util = require("util");
+
+
+//TODO this shouldn't import state, should have a parent function that calls the appropriate state and osc functions
+//TODO return promises?
 
 //baliset socket
-const baliset_sock= udp.createSocket('udp4', function(msg, rinfo){
+const baliset_sock = udp.createSocket('udp4', function(msg, rinfo){
   try {
     return console.log(osc.fromBuffer(msg))
   } catch (error) {
     return console.log('invalid osc packet')
   }
 });
+
+const socketSend = (msg, offset, length, port, host) => {
+  return new Promise((resolve, reject) => {
+    baliset_sock.send(msg, offset, length, port, host, (err, data) => {
+      resolve(data);
+    })
+  })
+}
+
 
 baliset_sock.bind(baliset_port);
 
@@ -76,7 +90,13 @@ exports.controlNode = function(msg) {
   const buf = osc.toBuffer(oscMsg);
   baliset_sock.send(buf, 0, buf.length, baliset_remote_port, baliset_host);
   baliset_state.controlNode(msg);
-  return {"route": "/node/controlled", "node_id": msg.node_id, "control_id": msg.control_id, "value": msg.value}
+  return {"route": "/node/controlled", "node_id": msg.node_id, "control_id": msg.control_id, "value": msg.value};
+}
+
+exports.freePatch = function(msg) {
+  const oscMsg = {address: '/patch/free', args: null};
+  const buf = osc.toBuffer(oscMsg);
+  return socketSend(buf, 0, buf.length, baliset_remote_port, baliset_host);
 }
 
 exports.loadPatch = function(patch) {

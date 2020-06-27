@@ -7,7 +7,7 @@ patch.last_node_id = 0;
 patch.nodes = {};
 patch.connections = [];
 
-clearPatch = function() {
+exports.freePatch = function() {
   patch.last_node_id = 0;
   patch.nodes = {};
   patch.connections = [];
@@ -86,7 +86,7 @@ exports.disconnectNode = function(msg) {
 }
 
 exports.loadPatch = function(p) {
-  clearPatch();
+  this.freePatch();
   let nodeIdMap = {};
   for (const id in p.nodes) {
     //it's maybe not guaranteed that for ... in will follow same order as it did in osc_client.loadPatch - but I mean I dunno, hopefully it does.

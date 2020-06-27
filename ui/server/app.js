@@ -8,6 +8,7 @@ const baliset_state = require("./baliset_state");
 const app = express();
 const web_port = 3001;
 const websocket_port = 3002;
+const init_patch = process.argv[2];
 
 //express
 app.use(cors());
@@ -64,6 +65,11 @@ function savePatch(msg) {
   writeStream.end();
   console.log(`saved patch: ${msg.name}`);
   return {"route": "/patch/saved", "name": filename};
+}
+
+function freePatch() {
+  baliset_state.freePatch();
+  return osc_client.freePatch();
 }
 
 function loadPatch(msg) {
@@ -151,4 +157,21 @@ wss.on("connection", function connection(ws) {
                           "nodes": baliset_state.getNodes(),
                           "connections": baliset_state.getConnections(),
                           "patches": listPatches()}));
+});
+
+//load init patch if provided as a cli arg
+if (init_patch) {
+  console.log(`Loading init patch: ${init_patch}`);
+  loadPatch({"name": init_patch});
+}
+
+//trap SIGINT and free the patch before exiting
+process.on('SIGINT', function() {
+  console.log("Freeing patch and terminating.");
+  wss.close(() => {
+    freePatch()
+      .then(data => {process.exit()})
+      .catch(err => {console.error(`Error freeing patch: ${err}`);
+                     process.exit(1);})
+  });
 });
