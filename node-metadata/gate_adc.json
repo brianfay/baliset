@@ -1,0 +1,6 @@
+{
+ "name": "gate_adc",
+ "outlets": ["l", "r"],
+  "controls": [{"name": "lowpass cutoff", "type": "hslider", "range": [0.0, 1.0], "default": 0.5},
+               {"name": "threshold", "type": "hslider", "range": [0.0, 0.1], "default": 0.1}]
+}

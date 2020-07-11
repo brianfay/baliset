@@ -205,6 +205,9 @@ node *new_node(const patch *p, const char *type) {
   if(strcmp(type, "dac") == 0) {
     return new_dac(p);
   }
+  if(strcmp(type, "gate_adc") == 0) {
+    return new_gate_adc(p);
+  }
   if(strcmp(type, "dist") == 0) {
     return new_dist(p);
   }
