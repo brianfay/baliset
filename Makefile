@@ -48,4 +48,4 @@ $(TINYPIPE_TARGET): $(TINYPIPE)/tinypipe.c
 .PHONY: clean
 
 clean:
-	rm $(BUILDDIR)/*.o $(BUILDDIR)/baliset $(BUILDDIR)/bela/*
+	rm -f $(BUILDDIR)/*.o $(BUILDDIR)/baliset $(BUILDDIR)/bela/*
