@@ -43,8 +43,9 @@ typedef struct {
   connection *connections;
 } outlet;
 
-typedef struct {
+typedef struct control {
   float val;
+  void (*set_control) (struct control *self, float val);
 } control;
 
 //private data that will be different for different types of nodes
@@ -150,11 +151,14 @@ void stop_osc_server();
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
 node *new_sin_osc(const patch *p);
 node *new_adc(const patch *p);
+node *new_buthp(const patch *p);
 node *new_dac(const patch *p);
 node *new_gate_adc(const patch *p);
 node *new_delay(const patch *p);
 node *new_dist(const patch *p);
+node *new_hip(const patch *p);
 node *new_mul(const patch *p);
+node *new_noise_gate(const patch *p);
 node *new_looper(const patch *p);
 #ifdef BELA
 node *new_digiread(const patch *p);

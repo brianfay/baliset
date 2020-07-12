@@ -1,0 +1,6 @@
+{
+  "name": "noise_gate",
+  "inlets": ["in"],
+  "outlets": ["out"],
+  "controls": [{"name": "threshold", "type": "hslider", "range": [-100.0, 0.0], "default": -100.0}]
+}

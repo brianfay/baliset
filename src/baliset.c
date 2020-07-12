@@ -188,6 +188,9 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
   if(num_outlets > 0) n->outlets = malloc(sizeof(outlet) * num_outlets);
 
   if(num_controls > 0) n->controls = malloc(sizeof(control) * num_controls);
+  for(int i=0; i < num_controls; i++) {
+    n->controls[i].set_control = NULL;
+  }
 
   n->prev = NULL;
   n->next = NULL;
@@ -202,6 +205,9 @@ node *new_node(const patch *p, const char *type) {
   if(strcmp(type, "adc") == 0) {
     return new_adc(p);
   }
+  if(strcmp(type, "buthp") == 0) {
+    return new_buthp(p);
+  }
   if(strcmp(type, "dac") == 0) {
     return new_dac(p);
   }
@@ -214,8 +220,14 @@ node *new_node(const patch *p, const char *type) {
   if(strcmp(type, "delay") == 0) {
     return new_delay(p);
   }
+  if(strcmp(type, "hip") == 0) {
+    return new_hip(p);
+  }
   if(strcmp(type, "mul") == 0) {
     return new_mul(p);
+  }
+  if(strcmp(type, "noise_gate") == 0) {
+    return new_noise_gate(p);
   }
   if(strcmp(type, "looper") == 0) {
     return new_looper(p);
@@ -292,10 +304,10 @@ blst_system *new_blst_system(audio_options audio_opts) {
   return bs;
 }
 
-int detect_cycles(const patch *p, int out_node_id, int in_node_id, int outlet_idx, int inlet_idx){
-  //TODO: dfs thru, mark, if you've already marked something return -1
-  return -1;
-}
+/* int detect_cycles(const patch *p, int out_node_id, int in_node_id, int outlet_idx, int inlet_idx){ */
+/*   //TODO: dfs thru, mark, if you've already marked something return -1 */
+/*   return -1; */
+/* } */
 
 node *get_node(const patch *p, unsigned int id) {
   node *n = p->table[id % TABLE_SIZE];
@@ -493,7 +505,13 @@ void zero_all_inlets(const patch *p) {
 
 void set_control(node *n, int ctl_id, float val) {
   control *ctl = &n->controls[ctl_id];
-  ctl->val = val;
+  if (ctl->set_control) {
+    /* printf("setting control the cool way!\n"); */
+    ctl->set_control(ctl, val);
+  } else {
+    /* printf("setting control the uncool way!\n"); */
+    ctl->val = val;
+  }
 }
 
 void handle_rt_msg(blst_system *bs, struct rt_msg *msg) {

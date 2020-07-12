@@ -1,0 +1,6 @@
+{
+  "name": "buthp",
+  "inlets": ["in"],
+  "outlets": ["out"],
+  "controls": [{"name": "cutoff", "type": "hslider", "range": [0.0, 3000.0], "default": 5.0}]
+}
