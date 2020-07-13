@@ -10,8 +10,8 @@ typedef struct {
   uint rms_count;
   float rms_accum;
   int gate_open;
-  uint num_gate_close_samples;
-  uint gate_close_countdown;
+  uint num_debounce_samples;
+  uint debounce_countdown;
   float rms_val;
 } noise_gate_data;
 
@@ -23,9 +23,9 @@ noise_gate_data *new_noise_gate_data(const patch *p) {
   printf("setting num_release_samples to %d\n", nd->num_release_samples);
   nd->attack_countdown = 0;
   nd->release_countdown = 0;
-  nd->num_rms_samples = (uint) ceil(p->audio_opts.sample_rate * 0.01); //0.05 50 ms is effective but latency sux
-  nd->num_gate_close_samples = (uint) ceil(p->audio_opts.sample_rate * 0.5);
-  nd->gate_close_countdown = 0;
+  nd->num_rms_samples = (uint) ceil(p->audio_opts.sample_rate * 0.01);
+  nd->num_debounce_samples = (uint) ceil(p->audio_opts.sample_rate * 0.5);
+  nd->debounce_countdown = 0;
   nd->rms_count = 0;
   nd->rms_accum = 0.0;
   nd->rms_val = 0.0;
@@ -50,10 +50,6 @@ void process_noise_gate(struct node *self) {
 
   float amp = data->gate_open ? 1.0 : 0.0;
 
-  if(!data->gate_open && data->gate_close_countdown > 0) {
-    data->gate_close_countdown--;
-  }
-
   for(int i = 0; i < o_out.buf_size; i++) {
     float x = in_buf[i];
 
@@ -67,6 +63,10 @@ void process_noise_gate(struct node *self) {
       data->release_countdown--;
     }
 
+    if (data->debounce_countdown) {
+      data->debounce_countdown--;
+    }
+
     data->rms_count = (data->rms_count + 1) % data->num_rms_samples;
     if(data->rms_count == 0) {
       data->rms_val = sqrtf((float)data->rms_accum / (float)data->num_rms_samples);
@@ -76,15 +76,17 @@ void process_noise_gate(struct node *self) {
       data->rms_accum += (x * x);
     }
 
-    if (data->gate_open && data->rms_val <= thresh) {
-      printf("closing gate, rms_val: %9.6f, thresh: %9.6f\n", data->rms_val, thresh);
-      data->gate_open = 0;
-      data->release_countdown = data->num_release_samples;
-    } else if (!data->gate_open && data->rms_val > thresh) {
-      printf("opening gate, rms_val: %9.6f, thresh: %9.6f\n", data->rms_val, thresh);
-      data->gate_open = 1;
-      data->attack_countdown = data->num_attack_samples;
-      data->gate_close_countdown = data->num_gate_close_samples;
+    if(!data->debounce_countdown){
+      if (data->gate_open && data->rms_val <= thresh) {
+        printf("closing gate, rms_val: %9.6f, thresh: %9.6f\n", data->rms_val, thresh);
+        data->gate_open = 0;
+        data->release_countdown = data->num_release_samples;
+      } else if (!data->gate_open && data->rms_val > thresh) {
+        printf("opening gate, rms_val: %9.6f, thresh: %9.6f\n", data->rms_val, thresh);
+        data->gate_open = 1;
+        data->attack_countdown = data->num_attack_samples;
+        data->debounce_countdown = data->num_debounce_samples; //prevent gate from closing very shortly after opening
+      }
     }
     out_buf[i] = amp * x;
   }
