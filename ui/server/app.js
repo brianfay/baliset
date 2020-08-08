@@ -16,13 +16,7 @@ app.use(cors());
 app.use(express.static("../client/resources/public"));
 
 app.get("/node_metadata", function (req, res) {
-    var arr = [];
-    fs.readdirSync("../../node-metadata")
-        .forEach(function (filename) {
-        var buf = fs.readFileSync("../../node-metadata/" + filename);
-        arr.push(JSON.parse(buf.toString()));
-    });
-    res.send(arr);
+  res.send(baliset_state.getNodeMetadata());
 });
 
 app.listen(web_port, function () {return console.log("express listening on " + web_port)});

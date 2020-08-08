@@ -10,8 +10,10 @@
 (rf/reg-event-db
  :initialize-db
  (fn [db _]
+   ;;most of these defaults probably don't need to be here, this is kind of a poor man's schema
    (assoc db :node-metadata {}
              :connections #{}
+             :drag-deltas {}
              :nodes {}
              :node-offset {}
              :pan [0 0]
@@ -29,11 +31,7 @@
 (rf/reg-event-db
  :load-node-metadata
  (fn [db [_ result]]
-   (let [node-map (reduce (fn [acc node-data]
-                            (assoc acc (node-data "name") node-data))
-                          {}
-                          result)]
-     (assoc db :node-metadata node-map))))
+   (assoc db :node-metadata result)))
 
 (rf/reg-event-fx
  :load-patch
@@ -225,7 +223,9 @@
 (rf/reg-event-db
  :db-add-node
  (fn [db [_ node-id node-type x y]]
-   (assoc-in db [:nodes node-id] {:type node-type :x x :y y})))
+   (assoc-in db [:nodes node-id] {:type node-type :x x :y y
+                                  :controls (mapv #(get % "default")
+                                                  (get-in db [:node-metadata node-type "controls"]))})))
 
 (rf/reg-event-db
  :db-delete-node
@@ -310,22 +310,26 @@
  (fn [{:keys [db]} [_ node-type node-id ctl-id delta width]]
    (let [ctl-metadata (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)
          [min max] (or (get ctl-metadata "range") [0.0 1.0])
-         percent (or (get-in db [:hslider-percent node-id ctl-id])
-                     (/ (- (get ctl-metadata "default") min) (- max min))
-                     0.0)
-         percent-moved (/ delta width)
-         new-percent (+ percent percent-moved)]
-     (cond (< 1.0 new-percent)
-           {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] (- 1.0 percent))
+         old-ctl-value (get-in db [:nodes node-id :controls ctl-id])
+         current-delta (or (get-in db [:drag-deltas node-id ctl-id]) 0)
+         new-ctl-value (+ old-ctl-value (* (- max min) (/ (- delta current-delta) width)))]
+     (cond (< max new-ctl-value)
+           {:db (-> db
+                    (assoc-in [:drag-deltas node-id ctl-id] delta)
+                    (assoc-in [:nodes node-id :controls ctl-id] max))
             :ws-control-node [node-id ctl-id max]}
 
-           (> 0.0 new-percent)
-           {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] (- 0.0 percent))
+           (> min new-ctl-value)
+           {:db (-> db
+                    (assoc-in [:drag-deltas node-id ctl-id] delta)
+                    (assoc-in [:nodes node-id :controls ctl-id] min))
             :ws-control-node [node-id ctl-id min]}
 
            :else
-           {:db (assoc-in db [:hslider-percent-offset node-id ctl-id] percent-moved)
-            :ws-control-node [node-id ctl-id (+ min (* (- max min) new-percent))]}))))
+           {:db (-> db
+                    (assoc-in [:drag-deltas node-id ctl-id] delta)
+                    (assoc-in [:nodes node-id :controls ctl-id] new-ctl-value))
+            :ws-control-node [node-id ctl-id new-ctl-value]}))))
 
 (rf/reg-event-fx
  :trigger
@@ -335,25 +339,7 @@
 (rf/reg-event-db
  :finish-dragging-hslider
  (fn [db [_ node-type node-id ctl-id]]
-   (let [ctl-metadata (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)
-         [min max] (or (get ctl-metadata "range") [0.0 1.0])
-         percent (or (get-in db [:hslider-percent node-id ctl-id])
-                     (/ (- (get ctl-metadata "default") min) (- max min))
-                     0.0)
-         percent-offset (or (get-in db [:hslider-percent-offset node-id ctl-id])
-                            0.0)
-         new-percent (+ percent percent-offset)]
-     (-> db
-         (assoc-in [:hslider-percent node-id ctl-id] (cond (< 1.0 new-percent) 1.0
-                                                           (> 0.0 new-percent) 0.0
-                                                           :else new-percent))
-         (assoc-in [:hslider-percent-offset node-id ctl-id] 0.0)))))
-
-(comment
-  (get-in db [:control-value ])
-  (assoc-in db [:control-value node-id ctl-id] ctl-val)
-  (assoc-in db [:ctl-value node-id ctl-id] ctl-val)
-  )
+   (update-in db [:drag-deltas node-id] dissoc ctl-id)))
 
 (rf/reg-event-db
  :pan-camera

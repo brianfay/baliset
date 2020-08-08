@@ -130,11 +130,6 @@ rf/subscribe
 ;;    (get-in db [:control-value node-id ctl-id])))
 
 (rf/reg-sub
- :ctl-meta
- (fn [db [_ node-type ctl-id]]
-   (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)))
-
-(rf/reg-sub
  :hslider-value
  (fn [db [_ node-type node-id ctl-id]]
    (let [ctl-metadata (nth (get-in db [:node-metadata node-type "controls"]) ctl-id)
@@ -144,6 +139,11 @@ rf/subscribe
                      0.0)
          percent-offset (or (get-in db [:hslider-percent-offset node-id ctl-id]) 0.0)]
      (+ min (* (- max min) (+ percent percent-offset))))))
+
+(rf/reg-sub
+ :ctl-value
+ (fn [db [_ node-id ctl-id]]
+   (get-in db [:nodes node-id :controls ctl-id])))
 
 (rf/reg-sub
  :pan

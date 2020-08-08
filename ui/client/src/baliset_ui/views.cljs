@@ -229,7 +229,7 @@
                 (rf/dispatch [:clicked-delete-node-btn]))}
    "DELETE"])
 
-(defn hslider [node-info ctl-id ctl]
+(defn hslider [node-info ctl-id ctl-meta]
   (let [x-off 4
         y-off 6
         width 324
@@ -237,7 +237,7 @@
         node-type (:type node-info)
         node-id (:id node-info)]
     (create-class
-     {:display-name (str "hslider-" (:id node-info) (get ctl "name"))
+     {:display-name (str "hslider-" (:id node-info) (get ctl-meta "name"))
       :component-did-mount
       (fn [this]
         (let [dom-node (re/dom-node this)
@@ -249,16 +249,16 @@
                    (rf/dispatch [:finish-dragging-hslider node-type node-id ctl-id])
                    (rf/dispatch [:drag-hslider node-type node-id ctl-id (goo/get ev "deltaX") width]))))))
       :reagent-render
-      (fn [node-info ctl-id ctl]
-        (let [ctl-metadata @(rf/subscribe [:ctl-meta node-type ctl-id])
-              [min max] (or (get ctl-metadata "range") [0.0 1.0])
-              value (or @(rf/subscribe [:hslider-value node-type node-id ctl-id]) 0.0)
-              percentage (/ (- value min) (- max min))]
+      (fn [node-info ctl-id ctl-meta]
+        (let [[min max] (or (get ctl-meta "range") [0.0 1.0])
+              ctl-value @(rf/subscribe [:ctl-value node-id ctl-id])
+              percentage (/ (- ctl-value min) (- max min))
+              pos (* percentage width)]
           [:svg.hslider
-           [:g [:text {:x 8 :y 0 :fill "#fff"} (.toFixed value 2)]
+           [:g [:text {:x 8 :y 0 :fill "#fff"} (.toFixed ctl-value 2)]
             [:rect {:x x-off :y y-off :width width :height height :rx 4 :ry 4 :fill "#333"}]
-            [:rect {:x x-off :y y-off :width (* percentage width) :height height :rx 4 :ry 4 :fill "#2bb"}]
-            [:circle {:cx (+ x-off (* percentage width)) :cy (+ y-off (/ height 2)) :r 7 :fill "#2bb"}]]]))})))
+            [:rect {:x x-off :y y-off :width pos :height height :rx 4 :ry 4 :fill "#2bb"}]
+            [:circle {:cx (+ x-off pos) :cy (+ y-off (/ height 2)) :r 7 :fill "#2bb"}]]]))})))
 
 (defn trigger [node-info ctl-id ctl]
   (let [triggered? (re/atom nil)]
@@ -272,25 +272,25 @@
                      [:rect.raised {:x 4 :y 6 :width 32 :height 32 :fill "#333"}]
                      (when @triggered? [:rect.raised {:x 7 :y 9 :width 26 :height 26 :fill "#2bb"}])]])))
 
-(defn control [node-info ctl-id ctl]
+(defn control [node-info ctl-id ctl-meta]
   [:div.ctl
-   [:p (get ctl "name")]
-   (case (get ctl "type")
+   [:p (get ctl-meta "name")]
+   (case (get ctl-meta "type")
      "hslider"
-     [hslider node-info ctl-id ctl]
+     [hslider node-info ctl-id ctl-meta]
 
      "trigger"
-     [trigger node-info ctl-id ctl])])
+     [trigger node-info ctl-id ctl-meta])])
 
 (defn controls [node-info]
   (let [node-meta @(rf/subscribe [:node-metadata (:type node-info)])
-        controls (get node-meta "controls")]
+        controls-meta (get node-meta "controls")]
     [:div.controls
      (map-indexed
-      (fn [ctl-id ctl]
-        ^{:key (str "ctl:" (:id node-info) (get ctl "name"))}
-        [control node-info ctl-id ctl])
-      controls)]))
+      (fn [ctl-id ctl-meta]
+        ^{:key (str "ctl:" (:id node-info) (get ctl-meta "name"))}
+        [control node-info ctl-id ctl-meta])
+      controls-meta)]))
 
 (defn node-panel []
   (let [expanded? @(rf/subscribe [:node-panel-expanded?])

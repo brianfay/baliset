@@ -1,11 +1,25 @@
 /* Currently, the baliset audio application doesn't provide any visibility into its state.
  * For now, just storing it here in the ui's server, optimistically assuming there's no dropped packets and everything just works.
  */
+const fs = require('fs');
 
 let patch = {};
 patch.last_node_id = 0;
 patch.nodes = {};
 patch.connections = [];
+
+let node_metadata;
+
+function loadNodeMetadata () {
+  node_metadata = {};
+  fs.readdirSync("../../node-metadata").forEach((filename) => {
+    let buf = fs.readFileSync("../../node-metadata/" + filename);
+    let node_meta = JSON.parse(buf.toString());
+    node_metadata[node_meta.name] = node_meta;
+  });
+}
+
+exports.getNodeMetadata = () => node_metadata;
 
 exports.freePatch = function() {
   patch.last_node_id = 0;
@@ -19,7 +33,9 @@ exports.getConnections = () => patch.connections;
 
 exports.addNode = function(n) {
   let node_id = patch.last_node_id++;
-  patch.nodes[node_id] = {"type": n.type, "x": n.x, "y": n.y, "controls": {}};
+  let node_meta = node_metadata[n.type];
+  let node_controls = node_meta.controls.map((m) => m.default);
+  patch.nodes[node_id] = {"type": n.type, "x": n.x, "y": n.y, "controls": node_controls};
   return node_id;
 }
 
@@ -103,3 +119,5 @@ exports.loadPatch = function(p) {
                             nodeIdMap[in_node_id], inlet_idx]);
   }
 }
+
+loadNodeMetadata();
