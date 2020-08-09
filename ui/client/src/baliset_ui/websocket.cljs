@@ -33,11 +33,21 @@
       ;;TODO do something on /patch/saved
       (println "unrecognized msg: " msg))))
 
+(declare handle-closed-socket)
+
 (defn connect []
   (when-not @sock
     (let [ws (js/WebSocket. (str "ws://" (goo/getValueByKeys js/window "location" "hostname") ":" port))]
+      (.addEventListener ws "open" #(rf/dispatch [:set-server-error-msg nil]))
       (.addEventListener ws "message" handle-message)
+      (.addEventListener ws "close" handle-closed-socket)
+      (.addEventListener ws "error" handle-closed-socket)
       (reset! sock ws))))
+
+(defn handle-closed-socket [e]
+  (rf/dispatch [:set-server-error-msg "lost websocket connection :( ... attempting to reconnect"])
+  (reset! sock nil)
+  (js/setTimeout connect 1000))
 
 (defn close []
   (.close @sock)

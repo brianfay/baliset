@@ -184,3 +184,8 @@ rf/subscribe
  :patch-save-name
  (fn [db _]
    (:patch-save-name db)))
+
+(rf/reg-sub
+ :server-error-msg
+ (fn [db _]
+   (:server-error-msg db)))

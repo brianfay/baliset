@@ -5,7 +5,7 @@
             [clojure.set :as cset]))
 
 (defn local-route [route]
-  (str (goo/get js/window "location") route))
+  (str (goo/get js/window "location/") route))
 
 (rf/reg-event-db
  :initialize-db
@@ -425,3 +425,8 @@
    (assoc db
           :scale (+ (- (:pinch-scale db) 1) (:scale db))
           :pinch-scale 1)))
+
+(rf/reg-event-db
+ :set-server-error-msg
+ (fn [db [_ msg]]
+   (assoc db :server-error-msg msg)))

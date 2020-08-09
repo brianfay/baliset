@@ -82,7 +82,7 @@ function listPatches() {
 function messageHandler(ws) {
   const handler = function(msg) {
     msg = JSON.parse(msg);
-    console.log(`got message: ${msg}`);
+    // console.log(`got message: ${msg}`);
     if(msg.route === undefined) {
       console.log(`expected message to be a json array containing a route parameter, got ${msg}`);
       return;

@@ -83,6 +83,12 @@ body {
     height: 16px;
 }
 
+.server-error-msg {
+    position: fixed;
+    left: 50%;
+    color: #F44;
+}
+
 .node-panel {
     position: fixed;
     height: 100%;

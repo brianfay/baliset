@@ -386,6 +386,11 @@
      [nodes]
      [connections]]))
 
+(defn server-error-msg
+  []
+  (let [error-msg @(rf/subscribe [:server-error-msg])]
+    [:div.server-error-msg error-msg]))
+
 (defn app
   "Top-level div, containing all other parts of the app. Sized to the screen dimensions"
   []
@@ -439,6 +444,7 @@
                                             (goo/getValueByKeys % "nativeEvent" "clientY")])
                    :on-wheel (fn [e]
                                (rf/dispatch [:scrolled-wheel (goo/get e "deltaY") (goo/get e "clientX") (goo/get e "clientY")]))}
+         [server-error-msg]
          [app-panel]
          [node-panel]
          [canvas]])})))
