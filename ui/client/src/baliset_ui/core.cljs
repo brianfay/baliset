@@ -21,3 +21,7 @@
                   (.getElementById js/document "app")))
 
 (defonce run-app! (main))
+
+(comment (+ 3 3))
+
+

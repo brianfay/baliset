@@ -240,7 +240,6 @@
      {:display-name (str "hslider-" (:id node-info) (get ctl-meta "name"))
       :component-did-mount
       (fn [this]
-        (def this this)
         (let [dom-node (re/dom-node this)
               svg-node (.item (.-childNodes dom-node) 1)
               ham-man (new js/Hammer.Manager svg-node)]
