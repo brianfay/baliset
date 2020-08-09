@@ -156,7 +156,6 @@ node *new_dac(const patch *p);
 node *new_delay(const patch *p);
 node *new_dist(const patch *p);
 node *new_flip_flop(const patch *p);
-node *new_gate_adc(const patch *p);
 node *new_hip(const patch *p);
 node *new_mul(const patch *p);
 node *new_noise_gate(const patch *p);

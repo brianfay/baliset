@@ -225,9 +225,6 @@ node *new_node(const patch *p, const char *type) {
   if(strcmp(type, "flip_flop") == 0) {
     return new_flip_flop(p);
   }
-  if(strcmp(type, "gate_adc") == 0) {
-    return new_gate_adc(p);
-  }
   if(strcmp(type, "hip") == 0) {
     return new_hip(p);
   }
