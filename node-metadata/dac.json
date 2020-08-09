@@ -1,5 +1,5 @@
 {
   "name": "dac",
   "inlets": ["l", "r"],
-  "controls": [{"name": "volume", "type": "hslider", "range": [0.0, 1.0], "default": 1.0}]
+  "controls": [{"name": "volume", "type": "hslider", "range": [0.0, 1.0], "default": 1.0, "step": 0.1}]
 }

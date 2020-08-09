@@ -2,5 +2,5 @@
   "name": "hip",
   "inlets": ["in"],
   "outlets": ["out"],
-  "controls": [{"name": "cutoff", "type": "hslider", "range": [0.0, 3000.0], "default": 1.0}]
+  "controls": [{"name": "cutoff", "type": "hslider", "range": [0.0, 3000.0], "default": 1.0, "step": 100.0}]
 }
