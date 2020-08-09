@@ -1,0 +1,6 @@
+{
+  "name": "flip_flop",
+  "inlets": ["in", "trig"],
+  "outlets": ["a", "b"],
+  "controls": [{"name": "flip_it", "type": "trigger", "default": 0.0}]
+}

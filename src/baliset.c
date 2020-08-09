@@ -199,26 +199,34 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
 
 node *new_node(const patch *p, const char *type) {
   //would love to not need this function but the alternative I can think of involves dynamic libs and sounds painful
-  if(strcmp(type, "sin") == 0) {
-    return new_sin_osc(p);
-  }
   if(strcmp(type, "adc") == 0) {
     return new_adc(p);
   }
   if(strcmp(type, "buthp") == 0) {
     return new_buthp(p);
   }
+  if(strcmp(type, "sin") == 0) {
+    return new_sin_osc(p);
+  }
   if(strcmp(type, "dac") == 0) {
     return new_dac(p);
   }
-  if(strcmp(type, "gate_adc") == 0) {
-    return new_gate_adc(p);
+  if(strcmp(type, "delay") == 0) {
+    return new_delay(p);
   }
   if(strcmp(type, "dist") == 0) {
     return new_dist(p);
   }
-  if(strcmp(type, "delay") == 0) {
-    return new_delay(p);
+#ifdef BELA
+  if(strcmp(type, "digiread") == 0) {
+    return new_digiread(p);
+  }
+#endif
+  if(strcmp(type, "flip_flop") == 0) {
+    return new_flip_flop(p);
+  }
+  if(strcmp(type, "gate_adc") == 0) {
+    return new_gate_adc(p);
   }
   if(strcmp(type, "hip") == 0) {
     return new_hip(p);
@@ -232,11 +240,6 @@ node *new_node(const patch *p, const char *type) {
   if(strcmp(type, "looper") == 0) {
     return new_looper(p);
   }
-  #ifdef BELA
-  if(strcmp(type, "digiread") == 0) {
-    return new_digiread(p);
-  }
-  #endif
   return NULL;
 }
 
