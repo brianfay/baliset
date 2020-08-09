@@ -8,7 +8,6 @@
 
 (defn handle-message [e]
   (let [msg (.parse js/JSON (goo/get e "data"))]
-    (println "in handle-message, got " msg)
     (case (goo/get msg "route")
       "/app_state"
       (rf/dispatch [:app-state msg])

@@ -42,7 +42,7 @@ cd ui/client
 clj -Afig
 ```
 
-Or from emacs/cider, open `ui/client/src/baliset_ui/core.cljs`, run `cider-jack-in-cljs`, choose ``fighweel-main`, and type `:dev` when prompted
+Or from emacs/cider, open `ui/client/src/baliset_ui/core.cljs`, run `cider-jack-in-cljs`, choose ``figwheel-main`, and type `:dev` when prompted
 
 Alternatively, the browser app be built with clojurescript optimizations on:
 ```

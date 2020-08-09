@@ -142,7 +142,7 @@
 
 (defn minimized-app-panel []
   [:div.minimized-app-panel
-   {:on-click #(do (println "clicked minimized app panel")(rf/dispatch [:clicked-minimized-app-panel]))}
+   {:on-click #(rf/dispatch [:clicked-minimized-app-panel])}
    [:svg.noclick [:g
                   [:line {:x1 0 :y1 4 :x2 24 :y2 4}]
                   [:line {:x1 0 :y1 10 :x2 24 :y2 10}]
@@ -240,8 +240,10 @@
      {:display-name (str "hslider-" (:id node-info) (get ctl-meta "name"))
       :component-did-mount
       (fn [this]
+        (def this this)
         (let [dom-node (re/dom-node this)
-              ham-man (new js/Hammer.Manager dom-node)]
+              svg-node (.item (.-childNodes dom-node) 1)
+              ham-man (new js/Hammer.Manager svg-node)]
           (.add ham-man (new js/Hammer.Pan #js {"event" "pan" "threshold" 0}))
           (.on ham-man "pan panstart panend pancancel"
                (fn [ev]
@@ -250,15 +252,83 @@
                    (rf/dispatch [:drag-hslider node-type node-id ctl-id (goo/get ev "deltaX") width]))))))
       :reagent-render
       (fn [node-info ctl-id ctl-meta]
-        (let [[min max] (or (get ctl-meta "range") [0.0 1.0])
+        (let [node-id (:id node-info)
+              [min max] (or (get ctl-meta "range") [0.0 1.0])
               ctl-value @(rf/subscribe [:ctl-value node-id ctl-id])
+              ctl-err @(rf/subscribe [:ctl-num-input.err node-id ctl-id])
+              ctl-num-input-val @(rf/subscribe [:ctl-num-input.val node-id ctl-id])
               percentage (/ (- ctl-value min) (- max min))
               pos (* percentage width)]
-          [:svg.hslider
-           [:g [:text {:x 8 :y 0 :fill "#fff"} (.toFixed ctl-value 2)]
-            [:rect {:x x-off :y y-off :width width :height height :rx 4 :ry 4 :fill "#333"}]
-            [:rect {:x x-off :y y-off :width pos :height height :rx 4 :ry 4 :fill "#2bb"}]
-            [:circle {:cx (+ x-off pos) :cy (+ y-off (/ height 2)) :r 7 :fill "#2bb"}]]]))})))
+          [:div
+           (cond->
+               [:div
+                [(if ctl-err :input.ctl-num-input.err :input.ctl-num-input)
+                 {:type "number"
+                  :value ctl-num-input-val
+                  :step (or (get ctl-meta "step") 0.1)
+                  :on-key-up #(let [val (-> % .-target .-value)
+                                    keycode (-> % .-keyCode)]
+                                (if (or (= 13 keycode) (= 38 keycode) (= 40 keycode)) ;;enter, up arrow, or down arrow
+                                  (cond
+                                    (or (= "" val) (js/isNaN val))
+                                    (rf/dispatch [:ctl-num-input.err node-id ctl-id "not a number"])
+
+                                    (<= min val max)
+                                    (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat val)])
+
+                                    (> min val)
+                                    (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat min)])
+
+                                    (< max val)
+                                    (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat max)])
+
+                                    :default
+                                    (rf/dispatch [:ctl-num-input.err node-id ctl-id "out of range"]))))
+                  ;;implementing on-click so that the number input arrows native in some browsers will submit
+                  :on-click #(let [val (-> % .-target .-value)]
+                               (cond
+                                 (or (= "" val) (js/isNaN val))
+                                 (rf/dispatch [:ctl-num-input.err node-id ctl-id "not a number"])
+
+                                 (<= min val max)
+                                 (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat val)])
+
+                                 (> min val)
+                                 (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat min)])
+
+                                 (< max val)
+                                 (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat max)])
+
+                                 :default
+                                 (rf/dispatch [:ctl-num-input.err node-id ctl-id "out of range"])))
+                  :on-change #(let [val (.replace (-> % .-target .-value)
+                                                  #"[^0-9.\-]" "")]
+                                (cond
+                                  (or (= "" val) (js/isNaN val))
+                                  (rf/dispatch [:ctl-num-input.change-with-err node-id ctl-id val "not a number"])
+
+                                  (<= min (js/parseFloat val) max)
+                                  (rf/dispatch [:ctl-num-input.change node-id ctl-id val])
+
+                                  :default
+                                  (rf/dispatch [:ctl-num-input.change-with-err node-id ctl-id val "out of range"])))
+                  :on-blur #(let [val (-> % .-target .-value)]
+                              (cond
+                                (or (= "" val) (js/isNaN val))
+                                (rf/dispatch [:ctl-num-input.err node-id ctl-id "not a number"])
+
+                                (<= min (js/parseFloat val) max)
+                                (rf/dispatch [:ctl-num-input.submit node-id ctl-id (js/parseFloat val)])
+
+                                :default
+                                (rf/dispatch [:ctl-num-input.err node-id ctl-id "out of range"])))}]]
+             ctl-err
+             (conj [:p.ctl-num-err-msg ctl-err]))
+
+           [:svg.hslider
+            [:g [:rect {:x x-off :y y-off :width width :height height :rx 4 :ry 4 :fill "#333"}]
+                [:rect {:x x-off :y y-off :width pos :height height :rx 4 :ry 4 :fill "#2bb"}]
+                [:circle {:cx (+ x-off pos) :cy (+ y-off (/ height 2)) :r 7 :fill "#2bb"}]]]]))})))
 
 (defn trigger [node-info ctl-id ctl]
   (let [triggered? (re/atom nil)]

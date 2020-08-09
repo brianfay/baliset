@@ -300,10 +300,38 @@
        (assoc-in [:nodes id :x] x)
        (assoc-in [:nodes id :y] y))))
 
-(rf/reg-event-fx
+(rf/reg-event-db
  :set-control
+ (fn [db [_ node-id ctl-id ctl-val]]
+   (assoc-in db [:nodes node-id :controls ctl-id] ctl-val)))
+
+(rf/reg-event-fx
+ :ctl-num-input.submit
  (fn [{:keys [db]} [_ node-id ctl-id ctl-val]]
-   {:db (assoc-in db [:control-value node-id ctl-id] ctl-val)}))
+   {:db (-> db
+            (assoc-in [:nodes node-id :controls ctl-id] ctl-val)
+            (update-in [:ctl-num-input.val node-id] dissoc ctl-id)
+            (update-in [:ctl-num-input.err node-id] dissoc ctl-id))
+    :ws-control-node [node-id ctl-id ctl-val]}))
+
+(rf/reg-event-db
+ :ctl-num-input.err
+ (fn [db [_ node-id ctl-id err-msg]]
+   (assoc-in db [:ctl-num-input.err node-id ctl-id] err-msg)))
+
+(rf/reg-event-db
+ :ctl-num-input.change
+ (fn [db [_ node-id ctl-id ctl-val]]
+   (-> db
+       (assoc-in [:ctl-num-input.val node-id ctl-id] ctl-val)
+       (update-in [:ctl-num-input.err node-id] dissoc ctl-id))))
+
+(rf/reg-event-db
+ :ctl-num-input.change-with-err
+ (fn [db [_ node-id ctl-id ctl-val err-msg]]
+   (-> db
+       (assoc-in [:ctl-num-input.val node-id ctl-id] ctl-val)
+       (assoc-in [:ctl-num-input.err node-id ctl-id] err-msg))))
 
 (rf/reg-event-fx
  :drag-hslider
@@ -316,19 +344,25 @@
      (cond (< max new-ctl-value)
            {:db (-> db
                     (assoc-in [:drag-deltas node-id ctl-id] delta)
-                    (assoc-in [:nodes node-id :controls ctl-id] max))
+                    (assoc-in [:nodes node-id :controls ctl-id] max)
+                    (update-in [:ctl-num-input.val node-id] dissoc ctl-id)
+                    (update-in [:ctl-num-input.err node-id] dissoc ctl-id))
             :ws-control-node [node-id ctl-id max]}
 
            (> min new-ctl-value)
            {:db (-> db
                     (assoc-in [:drag-deltas node-id ctl-id] delta)
-                    (assoc-in [:nodes node-id :controls ctl-id] min))
+                    (assoc-in [:nodes node-id :controls ctl-id] min)
+                    (update-in [:ctl-num-input.val node-id] dissoc ctl-id)
+                    (update-in [:ctl-num-input.err node-id] dissoc ctl-id))
             :ws-control-node [node-id ctl-id min]}
 
            :else
            {:db (-> db
                     (assoc-in [:drag-deltas node-id ctl-id] delta)
-                    (assoc-in [:nodes node-id :controls ctl-id] new-ctl-value))
+                    (assoc-in [:nodes node-id :controls ctl-id] new-ctl-value)
+                    (update-in [:ctl-num-input.val node-id] dissoc ctl-id)
+                    (update-in [:ctl-num-input.err node-id] dissoc ctl-id))
             :ws-control-node [node-id ctl-id new-ctl-value]}))))
 
 (rf/reg-event-fx

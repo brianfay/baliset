@@ -34,7 +34,7 @@ exports.getConnections = () => patch.connections;
 exports.addNode = function(n) {
   let node_id = patch.last_node_id++;
   let node_meta = node_metadata[n.type];
-  let node_controls = node_meta.controls.map((m) => m.default);
+  let node_controls = node_meta.controls ? node_meta.controls.map((m) => m.default) : [];
   patch.nodes[node_id] = {"type": n.type, "x": n.x, "y": n.y, "controls": node_controls};
   return node_id;
 }

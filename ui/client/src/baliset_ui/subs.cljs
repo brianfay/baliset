@@ -124,11 +124,6 @@ rf/subscribe
          cy2 out-y]
      [out-x out-y cx1 cy1 cx2 cy2 in-x in-y])))
 
-;; (rf/reg-sub
-;;  :control-value
-;;  (fn [db [_ node-id ctl-id]]
-;;    (get-in db [:control-value node-id ctl-id])))
-
 (rf/reg-sub
  :hslider-value
  (fn [db [_ node-type node-id ctl-id]]
@@ -144,6 +139,17 @@ rf/subscribe
  :ctl-value
  (fn [db [_ node-id ctl-id]]
    (get-in db [:nodes node-id :controls ctl-id])))
+
+(rf/reg-sub
+ :ctl-num-input.val
+ (fn [db [_ node-id ctl-id]]
+   (or (get-in db [:ctl-num-input.val node-id ctl-id])
+       (js/parseFloat (.toFixed (get-in db [:nodes node-id :controls ctl-id]) 3)))))
+
+(rf/reg-sub
+ :ctl-num-input.err
+ (fn [db [_ node-id ctl-id]]
+   (get-in db [:ctl-num-input.err node-id ctl-id])))
 
 (rf/reg-sub
  :pan

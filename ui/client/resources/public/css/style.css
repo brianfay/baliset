@@ -237,7 +237,37 @@ svg.trigger {
 
 .ctl {
     /* background-color: #ddd; */
+    /* display: block; */
     /* width: 900px; */
+}
+
+.ctl-num-input {
+    display: inline-block;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    width: 64px;
+    border: 2px inset #EBE9ED;
+    position: relative;
+    left: 8px;
+    font-family: monospace;
+    background-color: #000;
+    color: #fff;
+}
+
+.ctl-num-input.err {
+    display: inline-block;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    position: relative;
+    left: 8px;
+    width: 64px;
+    border: 2px inset #f00;
+}
+
+.ctl-num-err-msg {
+    display: inline-block;
+    margin-left: 16px;
+    color: #f44;
 }
 
 path {
