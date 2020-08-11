@@ -20,7 +20,7 @@ NODE_TARGETS = $(NODE_SRC:nodes/%.c=$(BUILDDIR)/%.o)
 ifeq ($(BALISET_ENV),bela)
 	CFLAGS += -DBELA -I/root/Bela/include -L/root/Bela/lib -L/root/Bela/libraries -lbela -lbelaextra -O3 -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ftree-vectorize -ffast-math -DNDEBUG
 else
-	CFLAGS += -O3 -g -lportaudio
+	CFLAGS += -O3 -g -ljack
 endif
 
 ifeq ($(BALISET_ENV),bela)
@@ -29,7 +29,7 @@ $(BUILDDIR)/baliset: $(wildcard platforms/bela/*.cpp) $(BALISET_TARGETS) $(NODE_
 #but I guess I'll find out
 	$(CXX) -o $@ $^ $(CFLAGS)
 else
-$(BUILDDIR)/baliset: $(wildcard platforms/desktop/*.c) $(BALISET_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
+$(BUILDDIR)/baliset: $(wildcard platforms/jack/*.c) $(BALISET_TARGETS) $(NODE_TARGETS) $(TINYOSC_TARGET) $(TINYPIPE_TARGET)
 	$(CC) -o $@ $^ $(CFLAGS)
 endif
 

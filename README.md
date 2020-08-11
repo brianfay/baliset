@@ -5,7 +5,7 @@ Not really ready for public consumption, but you are welcome to check it out and
 
 Uses [TinyPipe](https://github.com/mhroth/tinypipe) and [TinyOSC](https://github.com/mhroth/tinyosc) by Martin Roth, which I copied into the repo, and relies on Paul Batchelor's [Soundpipe](https://github.com/PaulBatchelor/Soundpipe), which you will need to install.
 
-Supported platforms are desktop via Portaudio, and [Bela](bela.io)
+Supported platforms are desktop via JACK, and [Bela](bela.io)
 
 You will need a build directory:
 ```
