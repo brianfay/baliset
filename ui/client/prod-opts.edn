@@ -1,0 +1,7 @@
+{:optimizations :advanced
+ ;;:output-to "resources/public/js/main.js"
+ ;;:output-dir "resources/public/js/out"
+ :output-to "resources/public/cljs-out/prod-main.js"
+ :output-dir "resources/public/cljs-out/out"
+ :main "baliset-ui.core"
+ :asset-path "cljs-out/out"}
