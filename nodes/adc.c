@@ -1,4 +1,4 @@
-#include "baliset.h"
+#include "baliset_graph.h"
 
 node *new_adc(const patch *p) {
   int num_outlets = p->audio_opts.hw_in_channels;

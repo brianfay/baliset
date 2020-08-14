@@ -1,8 +1,8 @@
-#include "baliset.h"
+#include "baliset_graph.h"
 #include <math.h>
 
 
-//one pole highpass, ripped of from pd source code https://github.com/pure-data/pure-data/blob/master/src/d_filter.c
+//one pole highpass, ripped off from pd source code https://github.com/pure-data/pure-data/blob/master/src/d_filter.c
 //out = normal * (new - last)
 //y = (0.5 * (1 + coef)) * ((x[n] + coef * y[n-1]) - y[n-1])
 

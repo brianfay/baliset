@@ -1,4 +1,4 @@
-#include "baliset.h"
+#include "baliset_osc_server.h"
 #include <jack/jack.h>
 /* #include "string.h" */
 /* #include "tinypipe.h" */
@@ -21,7 +21,7 @@ int process(jack_nframes_t nframes, void *arg) {
     bs->p->hw_outlets[1].buf[i] = inR[i];
   }
 
-  blst_process(bs);
+  blst_rt_process(bs);
 
   for(int i=0; i<nframes; i++) {
     outL[i] = bs->p->hw_inlets[0].buf[i];

@@ -33,10 +33,10 @@ $(BUILDDIR)/baliset: $(wildcard platforms/jack/*.c) $(BALISET_TARGETS) $(NODE_TA
 	$(CC) -o $@ $^ $(CFLAGS)
 endif
 
-$(BALISET_TARGETS): $(BALISET_SRC)
+$(BALISET_TARGETS): $(BUILDDIR)/%.o : src/%.c include/%.h
 	$(CC) -c $< -o $@ $(CFLAGS)
 
-$(NODE_TARGETS): $(BUILDDIR)/%.o : $(NODE_SRCDIR)/%.c include/baliset.h
+$(NODE_TARGETS): $(BUILDDIR)/%.o : $(NODE_SRCDIR)/%.c include/baliset_graph.h
 	$(CC) -c $< -o $@ $(CFLAGS)
 
 $(TINYOSC_TARGET): $(TINYOSC)/tinyosc.c

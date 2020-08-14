@@ -1,14 +1,15 @@
+#ifndef BALISET_GRAPH_H
+#define BALISET_GRAPH_H
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef BALISET_H
-#define BALISET_H
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "tinypipe.h"
+#include <assert.h>
+  //#include <string.h>
+
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
 
@@ -91,12 +92,10 @@ typedef struct patch {
   outlet *hw_outlets;
 } patch;
 
-//top level app state
-typedef struct blst_system {
-  audio_options audio_opts;
-  patch *p;
-  TinyPipe consumer_pipe, producer_pipe;
-} blst_system;
+struct disconnect_pair {
+  connection *in_conn;
+  connection *out_conn;
+};
 
 node *new_node(const patch *p, const char *type);
 
@@ -105,8 +104,6 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
 void init_inlet(const patch *p, node *n, int idx);
 
 void init_outlet(const patch *p, node *n, int idx);
-
-blst_system *new_blst_system(audio_options audio_opts);
 
 patch *new_patch(audio_options audio_opts);
 
@@ -123,30 +120,21 @@ node *get_node(const patch *p, unsigned int id);
 void free_node(node *n);
 
 void free_patch(patch *p);
+ 
+void add_connection(patch *p, connection *out_conn, connection *in_conn);
 
-void free_blst_system(blst_system *p);
-
-//TODO error handling
 void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
-             unsigned int in_node_id, unsigned int inlet_id);
+                  unsigned int in_node_id, unsigned int inlet_id);
 
-void blst_disconnect(patch *p, unsigned int out_node_id,
-                   unsigned int outlet_id, unsigned int in_node_id, unsigned int inlet_id);
+struct disconnect_pair blst_disconnect(const patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx);
 
 void sort_patch(patch *p);
 
-void blst_process(blst_system *bs);
+void blst_process(const patch *p);
 
 void set_control(node *n, int ctl_id, float val);
 
-//deffo want a limiter on dac eventually
-//dac can be a real node, but its inlets/outlets should just be pointers to inlets/outlets in patch struct
-//
-
 void no_op(struct node *self);
-
-void run_osc_server(blst_system *bs);
-void stop_osc_server();
 
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
 node *new_sin_osc(const patch *p);
@@ -155,6 +143,7 @@ node *new_buthp(const patch *p);
 node *new_dac(const patch *p);
 node *new_delay(const patch *p);
 node *new_dist(const patch *p);
+node *new_float(const patch *p);
 node *new_flip_flop(const patch *p);
 node *new_hip(const patch *p);
 node *new_mul(const patch *p);
@@ -164,8 +153,8 @@ node *new_looper(const patch *p);
 node *new_digiread(const patch *p);
 #endif
 
-#endif
-
 #ifdef __cplusplus
 }
 #endif
+
+#endif //BALISET_GRAPH

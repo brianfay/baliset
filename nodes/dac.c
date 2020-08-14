@@ -1,4 +1,4 @@
-#include "baliset.h"
+#include "baliset_graph.h"
 #include "math.h"
 
 typedef struct {

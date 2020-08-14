@@ -1,4 +1,4 @@
-#include "baliset.h"
+#include "baliset_graph.h"
 
 void process_mul(struct node *self) {
   float *out_buf = self->outlets[0].buf;

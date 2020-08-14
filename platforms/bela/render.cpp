@@ -134,20 +134,20 @@ int main()
         // you must have defined these function pointers somewhere and assign them to `settings` here.
         // only `settings.render` is required.
   settings.periodSize = 128;
-  printf("num frames: %d", settings.periodSize);
+  printf("num frames: %d\n", settings.periodSize);
   settings.setup = &setup;
   settings.render = &render;
   settings.cleanup = &cleanup;
 
   // Initialise the PRU audio device
   if(Bela_initAudio(&settings, 0) != 0) {
-                fprintf(stderr, "Error: unable to initialise audio");
+                fprintf(stderr, "Error: unable to initialise audio\n");
   	return -1;
   }
 
   // Start the audio device running
   if(Bela_startAudio()) {
-  	fprintf(stderr, "Error: unable to start real-time audio");
+  	fprintf(stderr, "Error: unable to start real-time audio\n");
   	// Stop the audio device
   	Bela_stopAudio();
   	// Clean up any resources allocated for audio
