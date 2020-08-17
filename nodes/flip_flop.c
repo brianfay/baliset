@@ -35,20 +35,10 @@ void process_flip_flop(struct node *self) {
   }
 }
 
-void destroy_flip_flop(node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  flip_flop_data *d = self->data;
-  free(d);
-  free(self->controls);
-  /* free(self); */
-}
-
 node *new_flip_flop(const patch *p) {
   node *n = init_node(p, 2, 2, 1);
   n->data = new_flip_flop_data(p);
   n->process = &process_flip_flop;
-  n->destroy = &destroy_flip_flop;
 
   //flip_it toggle
   n->controls[0].val = 0.0;

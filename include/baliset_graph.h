@@ -134,8 +134,6 @@ void blst_process(const patch *p);
 
 void set_control(node *n, int ctl_id, float val);
 
-void no_op(struct node *self);
-
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
 node *new_sin_osc(const patch *p);
 node *new_adc(const patch *p);

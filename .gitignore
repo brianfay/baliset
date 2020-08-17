@@ -1,3 +1,5 @@
 target/
 node_modules/
 build/
+ui/client/.cpcache
+ui/client/resources/public/cljs-out

@@ -25,9 +25,9 @@ void process_dist(struct node *self) {
 }
 
 void destroy_dist(struct node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free(self->controls);
+  dist_data *d = self->data;
+  free(d->sp);
+  free(d->ds);
 }
 
 node *new_dist(const patch *p) {

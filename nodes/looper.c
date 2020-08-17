@@ -66,12 +66,8 @@ void process_looper(struct node *self) {
 }
 
 void destroy_looper(struct node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free(self->controls);
   looper_data *ld = self->data;
   free(ld->buf);
-  free(self->data);
 }
 
 node *new_looper(const patch *p) {

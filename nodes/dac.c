@@ -31,11 +31,6 @@ void process_dac(struct node *self) {
   }
 }
 
-void destroy_dac(struct node *self) {
-  destroy_inlets(self);
-  free(self->controls);
-}
-
 node *new_dac(const patch *p) {
   int num_inlets = p->audio_opts.hw_out_channels;
   node *n = init_node(p, num_inlets, 0, 1);
@@ -44,7 +39,6 @@ node *new_dac(const patch *p) {
   /* data->amp = 1.0; */
   n->data = data;
   n->process = &process_dac;
-  n->destroy = &destroy_dac;
   n->controls[0].val = 1.0; //volume
   n->controls[0].set_control = &set_amp;
   for(int i = 0; i < num_inlets; i++){

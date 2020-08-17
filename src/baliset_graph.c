@@ -21,19 +21,23 @@ void free_inlet_connections(inlet in) {
 }
 
 void destroy_inlets(node *n) {
-  for(int i = 0; i < n->num_inlets; i++) {
-    free_inlet_connections(n->inlets[i]);
-    free(n->inlets[i].buf);
+  if(n->num_inlets > 0) {
+    for(int i = 0; i < n->num_inlets; i++) {
+      free_inlet_connections(n->inlets[i]);
+      free(n->inlets[i].buf);
+    }
+    free(n->inlets);
   }
-  free(n->inlets);
 }
 
 void destroy_outlets(node *n) {
-  for(int i = 0; i < n->num_outlets; i++) {
-    free_outlet_connections(n->outlets[i]);
-    free(n->outlets[i].buf);
+  if(n->num_outlets > 0) {
+    for(int i = 0; i < n->num_outlets; i++) {
+      free_outlet_connections(n->outlets[i]);
+      free(n->outlets[i].buf);
+    }
+    free(n->outlets);
   }
-  free(n->outlets);
 }
 
 void free_node_list(node *n) {
@@ -42,7 +46,7 @@ void free_node_list(node *n) {
     tmp = n;
     n = n->next;
     if(tmp) {
-      tmp->destroy(tmp);
+      free_node(tmp);
       free(tmp);
     }
   }
@@ -80,8 +84,13 @@ void remove_node(patch *p, node *n) {
 
 void free_node(node *n) {
   //could we free all inlets/outlets here?
-  n->destroy(n);
-  free(n);
+  free(n->data);
+  destroy_inlets(n);
+  destroy_outlets(n);
+  if(n->num_controls > 0) {
+    free(n->controls);
+  }
+  if (n->destroy) n->destroy(n);
 }
 
 void free_node_table(node_table table) {
@@ -96,6 +105,8 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
   assert(num_outlets >= 0);
   assert(num_controls >= 0);
   node *n = malloc(sizeof(node));
+  n->process = NULL;
+  n->destroy = NULL;
   n->last_visited = -1;
   n->num_controls = num_controls;
 
@@ -367,7 +378,7 @@ void blst_process(const patch *p) {
   int top = p->order.top;
   while(top >= 0) {
     node *n = get_node(p, p->order.stk[top]);
-    n->process(n);
+    if(n->process) n->process(n);
 
     //add outlet contents to connected inlets
     for(int i = 0; i < n->num_outlets; i++) {
@@ -384,8 +395,4 @@ void blst_process(const patch *p) {
     }
     top--;
   }
-}
-
-void no_op(node *self) {
-  return;
 }

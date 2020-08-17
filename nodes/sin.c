@@ -25,12 +25,6 @@ void process_sin(struct node *self) {
   }
 }
 
-void destroy_sin(struct node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free((sin_data*)self->data);
-}
-
 sin_data *new_sin_data(const patch *p){
   sin_data *d = malloc(sizeof(sin_data));
   d->phase = 0.0;
@@ -42,7 +36,6 @@ node *new_sin_osc(const patch *p) {
   node *n = init_node(p, 2, 1, 0);
   n->data = new_sin_data(p);
   n->process = &process_sin;
-  n->destroy = &destroy_sin;
   //freq
   init_inlet(p, n, 0);
   //amp

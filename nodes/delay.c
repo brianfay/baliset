@@ -43,12 +43,8 @@ void process_delay(struct node *self) {
 }
 
 void destroy_delay(struct node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free(self->controls);
-  delay_data *data = (delay_data*) self->data;
-  free(data->delay_line);
-  free(data);
+  delay_data *d = self->data;
+  free(d->delay_line);
 }
 
 delay_data *new_delay_data(const patch *p){

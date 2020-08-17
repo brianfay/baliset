@@ -35,9 +35,6 @@ void destroy_buthp(struct node *self) {
   buthp_data *data = self->data;
   sp_buthp_destroy(&data->buthp);
   sp_destroy(&data->sp);
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free(self->controls);
 }
 
 node *new_buthp(const patch *p) {

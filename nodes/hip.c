@@ -50,19 +50,10 @@ void process_hip(struct node *self) {
   data->last = last;
 }
 
-
-void destroy_hip(struct node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free(self->controls);
-  free((hip_data*)self->data);
-}
-
 node *new_hip(const patch *p) {
   node *n = init_node(p, 1, 1, 1);
   n->data = new_hip_data(p);
   n->process = &process_hip;
-  n->destroy = &destroy_hip;
   n->controls[0].set_control = &set_cutoff;
   set_cutoff(&n->controls[0], 1.0);
   init_inlet(p, n, 0);

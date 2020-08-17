@@ -18,9 +18,7 @@ typedef struct {
 noise_gate_data *new_noise_gate_data(const patch *p) {
   noise_gate_data *nd = malloc(sizeof(noise_gate_data));
   nd->num_attack_samples = (uint) ceil(p->audio_opts.sample_rate * 0.001);
-  printf("setting num_attack_samples to %d\n", nd->num_attack_samples);
   nd->num_release_samples = (uint) ceil(p->audio_opts.sample_rate * 0.01);
-  printf("setting num_release_samples to %d\n", nd->num_release_samples);
   nd->attack_countdown = 0;
   nd->release_countdown = 0;
   nd->num_rms_samples = (uint) ceil(p->audio_opts.sample_rate * 0.01);
@@ -55,11 +53,9 @@ void process_noise_gate(struct node *self) {
 
     if (data->attack_countdown) {
       amp = (float)(data->num_attack_samples - data->attack_countdown) / (float)data->num_attack_samples;
-      /* printf("amp: %9.6f, attack countdown: %d\n", amp, data->attack_countdown); */
       data->attack_countdown--;
     } else if (data->release_countdown) {
       amp = (float) data->release_countdown / (float)data->num_release_samples;
-      /* printf("amp: %9.6f, release countdown: %d\n", amp, data->release_countdown); */
       data->release_countdown--;
     }
 
@@ -78,11 +74,9 @@ void process_noise_gate(struct node *self) {
 
     if(!data->debounce_countdown){
       if (data->gate_open && data->rms_val <= thresh) {
-        printf("closing gate, rms_val: %9.6f, thresh: %9.6f\n", data->rms_val, thresh);
         data->gate_open = 0;
         data->release_countdown = data->num_release_samples;
       } else if (!data->gate_open && data->rms_val > thresh) {
-        printf("opening gate, rms_val: %9.6f, thresh: %9.6f\n", data->rms_val, thresh);
         data->gate_open = 1;
         data->attack_countdown = data->num_attack_samples;
         data->debounce_countdown = data->num_debounce_samples; //prevent gate from closing very shortly after opening
@@ -93,16 +87,9 @@ void process_noise_gate(struct node *self) {
 
 }
 
-void destroy_noise_gate(struct node *self) {
-  destroy_inlets(self);
-  destroy_outlets(self);
-  free(self->controls);
-}
-
 node *new_noise_gate(const patch *p) {
   node *n = init_node(p, 1, 1, 1);
   n->process = &process_noise_gate;
-  n->destroy = &destroy_noise_gate;
 
   n->data = new_noise_gate_data(p);
   n->controls[0].val = 1E-5;
