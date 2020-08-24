@@ -1,6 +1,6 @@
 #include "baliset_graph.h"
 
-void process_mul(struct node *self) {
+void process_mul(blst_node *self) {
   float *out_buf = self->outlets[0].buf;
   float *in_buf_a = self->inlets[0].buf;
   float *in_buf_b = self->inlets[1].buf;
@@ -9,14 +9,14 @@ void process_mul(struct node *self) {
   }
 }
 
-node *new_mul(const patch *p) {
-  node *n = init_node(p, 2, 1, 0);
+blst_node *blst_new_mul(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 2, 1, 0);
   n->process = &process_mul;
   //a
-  init_inlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
   //b
-  init_inlet(p, n, 1);
+  blst_init_inlet(p, n, 1);
   //out
-  init_outlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
   return n;
 }

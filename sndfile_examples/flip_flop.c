@@ -5,17 +5,17 @@
 #define SAMPLE_RATE 44100
 
 int main() {
-  audio_options a = {.buf_size = 1, .sample_rate = SAMPLE_RATE,
-                     .hw_in_channels = 2, .hw_out_channels = 2};
+  blst_audio_options a = {.buf_size = 1, .sample_rate = SAMPLE_RATE,
+                          .hw_in_channels = 2, .hw_out_channels = 2};
 
-  patch *p = new_patch(a);
-  node *sin = new_sin_osc(p);
-  node *flip = new_flip_flop(p);
-  node *dac = new_dac(p);
+  blst_patch *p = blst_new_patch(a);
+  blst_node *sin = blst_new_sin_osc(p);
+  blst_node *flip = blst_new_flip_flop(p);
+  blst_node *dac = blst_new_dac(p);
 
-  add_node(p, sin);
-  add_node(p, flip);
-  add_node(p, dac);
+  blst_add_node(p, sin);
+  blst_add_node(p, flip);
+  blst_add_node(p, dac);
 
   blst_connect(p, sin->id, 0, flip->id, 0);
   blst_connect(p, flip->id, 0, dac->id, 1);
@@ -26,6 +26,7 @@ int main() {
   info.samplerate = SAMPLE_RATE;
   info.channels = 2;
   info.format = SF_FORMAT_WAV | SF_FORMAT_FLOAT;
+  info.frames = SAMPLE_RATE * 3;
   SNDFILE *sf = sf_open("flip_flop.wav", SFM_WRITE, &info);
 
   //seems to be interleaved
@@ -37,7 +38,7 @@ int main() {
     sf_write_float(sf, b, 2);
   }
 
-  free_patch(p);
+  blst_free_patch(p);
   sf_close(sf);
   return 0;
 }

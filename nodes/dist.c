@@ -6,8 +6,8 @@ typedef struct {
   sp_dist *ds;
 } dist_data;
 
-void process_dist(struct node *self) {
-  outlet o_out = self->outlets[0];
+void process_dist(blst_node *self) {
+  blst_outlet o_out = self->outlets[0];
   float *out_buf = self->outlets[0].buf;
   float *in_buf = self->inlets[0].buf;
 
@@ -24,14 +24,14 @@ void process_dist(struct node *self) {
   }
 }
 
-void destroy_dist(struct node *self) {
+void destroy_dist(blst_node *self) {
   dist_data *d = self->data;
   free(d->sp);
   free(d->ds);
 }
 
-node *new_dist(const patch *p) {
-  node *n = init_node(p, 1, 1, 4);
+blst_node *blst_new_dist(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 1, 1, 4);
   dist_data *data = malloc(sizeof(dist_data));
   n->data = data;
   n->process = &process_dist;
@@ -41,9 +41,9 @@ node *new_dist(const patch *p) {
   sp_dist_create(&data->ds);
 
   //in
-  init_inlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
   //out
-  init_outlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
 
   //pregain
   n->controls[0].val = 2.0;

@@ -12,6 +12,7 @@ extern "C" {
 
 #define TABLE_SIZE 64
 #define MAX_NODES 2048
+#define WAVETABLE_SIZE 1024
 
 typedef struct {
   unsigned int buf_size;
@@ -22,133 +23,140 @@ typedef struct {
   unsigned int digital_channels;
   unsigned int digital_frames;
 #endif
-} audio_options;
+} blst_audio_options;
 
 typedef struct connection {
   struct connection *next;
   unsigned int node_id;
   unsigned int io_id;
-} connection;
+} blst_connection;
 
 typedef struct {
   float *buf;
   int buf_size;
   int num_connections;
-  connection *connections;
-} inlet;
+  blst_connection *connections;
+} blst_inlet;
 
 typedef struct {
   float *buf;
   int buf_size;
   int num_connections;
-  connection *connections;
-} outlet;
+  blst_connection *connections;
+} blst_outlet;
 
-typedef struct control {
+typedef struct blst_control {
   float val;
-  void (*set_control) (struct control *self, float val);
-} control;
+  void (*set_control) (struct blst_control *self, float val);
+} blst_control;
 
-//private data that will be different for different types of nodes
-typedef void *node_data;
-
-typedef struct node {
+typedef struct blst_node {
   int id;
-  node_data data;
-  inlet *inlets;
+  void *data;
+  blst_inlet *inlets;
   unsigned int num_inlets;
-  outlet *outlets;
+  blst_outlet *outlets;
   unsigned int num_outlets;
-  control *controls;
+  blst_control *controls;
   unsigned int num_controls;
   unsigned int last_visited;// generation/timestamp thing
-  void (*process) (struct node *self);
-  void (*destroy) (struct node *self);
+  void (*process) (struct blst_node *self);
+  void (*destroy) (struct blst_node *self);
   //keeping doubly-linked lists of nodes inside of a hash table, so we need references to prev/next
-  struct node *prev;
-  struct node *next;
-} node;
+  struct blst_node *prev;
+  struct blst_node *next;
+} blst_node;
 
-typedef node** node_table;
+typedef blst_node** blst_node_table;
 
-struct int_stack {
+struct blst_int_stack {
   int stk[MAX_NODES];
   int top;
 };
 
-typedef struct patch {
-  audio_options audio_opts;
+typedef struct {
+  float sine_table[WAVETABLE_SIZE];
+} blst_wavetables;
+
+typedef struct blst_patch {
+  blst_audio_options audio_opts;
   //hashtable of nodes
-  node_table table;
-  struct int_stack order;
+  blst_node_table table;
+  struct blst_int_stack order;
   int next_id; //should monotonically increase
   //it's kind of confusing, but hw_inlets are the audio outputs
   //hw_outlets are the audio inputs
-  inlet *hw_inlets;
+  blst_inlet *hw_inlets;
 #ifdef BELA
-  outlet *digital_outlets;
+  blst_outlet *digital_outlets;
   //TODO might want digital inlets, and analog inlets/outlets
 #endif
-  outlet *hw_outlets;
-} patch;
+  blst_outlet *hw_outlets;
+  blst_wavetables wavetables;
+} blst_patch;
 
-struct disconnect_pair {
-  connection *in_conn;
-  connection *out_conn;
+struct blst_disconnect_pair {
+  blst_connection *in_conn;
+  blst_connection *out_conn;
 };
 
-node *new_node(const patch *p, const char *type);
+blst_node *blst_new_node(const blst_patch *p, const char *type);
 
-node *init_node(const patch *p, int num_inlets, int num_outlets, int num_controls);
+blst_node *blst_init_node(const blst_patch *p, int num_inlets, int num_outlets, int num_controls);
 
-void init_inlet(const patch *p, node *n, int idx);
+void blst_init_inlet(const blst_patch *p, blst_node *n, int idx);
 
-void init_outlet(const patch *p, node *n, int idx);
+void blst_init_outlet(const blst_patch *p, blst_node *n, int idx);
 
-patch *new_patch(audio_options audio_opts);
+blst_patch *blst_new_patch(blst_audio_options audio_opts);
 
-void destroy_inlets(node *n);
+void blst_destroy_inlets(blst_node *n);
 
-void destroy_outlets(node *n);
+void blst_destroy_outlets(blst_node *n);
 
-void add_node(patch *p, node *n);
+void blst_add_node(blst_patch *p, blst_node *n);
 
-void remove_node(patch *p, node *n);//doesn't actually free the memory, hang on to that pointer!
+void blst_remove_node(blst_patch *p, blst_node *n);//doesn't actually free the memory, hang on to that pointer!
 
-node *get_node(const patch *p, unsigned int id);
+blst_node *blst_get_node(const blst_patch *p, unsigned int id);
 
-void free_node(node *n);
+void blst_free_node(blst_node *n);
 
-void free_patch(patch *p);
- 
-void add_connection(patch *p, connection *out_conn, connection *in_conn);
+void blst_free_patch(blst_patch *p);
 
-void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_add_connection(blst_patch *p, blst_connection *out_conn, blst_connection *in_conn);
+
+//public
+void blst_connect(blst_patch *p, unsigned int out_node_id, unsigned int outlet_id,
                   unsigned int in_node_id, unsigned int inlet_id);
 
-struct disconnect_pair blst_disconnect(const patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx);
+//private
+struct blst_disconnect_pair blst_disconnect(const blst_patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx);
 
-void sort_patch(patch *p);
+//private
+void blst_sort_patch(blst_patch *p);
 
-void blst_process(const patch *p);
+//public
+void blst_process(const blst_patch *p);
 
-void set_control(node *n, int ctl_id, float val);
+//public
+void blst_set_control(blst_node *n, int ctl_id, float val);
 
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C
-node *new_sin_osc(const patch *p);
-node *new_adc(const patch *p);
-node *new_buthp(const patch *p);
-node *new_dac(const patch *p);
-node *new_delay(const patch *p);
-node *new_dist(const patch *p);
-node *new_float(const patch *p);
-node *new_flip_flop(const patch *p);
-node *new_hip(const patch *p);
-node *new_mul(const patch *p);
-node *new_noise_gate(const patch *p);
-node *new_looper(const patch *p);
+blst_node *blst_new_sin_osc(const blst_patch *p);
+blst_node *blst_new_adc(const blst_patch *p);
+blst_node *blst_new_buthp(const blst_patch *p);
+blst_node *blst_new_dac(const blst_patch *p);
+blst_node *blst_new_delay(const blst_patch *p);
+blst_node *blst_new_dist(const blst_patch *p);
+blst_node *blst_new_float(const blst_patch *p);
+blst_node *blst_new_flip_flop(const blst_patch *p);
+blst_node *blst_new_hip(const blst_patch *p);
+blst_node *blst_new_mul(const blst_patch *p);
+blst_node *blst_new_noise_gate(const blst_patch *p);
+blst_node *blst_new_looper(const blst_patch *p);
 #ifdef BELA
-node *new_digiread(const patch *p);
+blst_node *blst_new_digiread(const blst_patch *p);
 #endif
 
 #ifdef __cplusplus

@@ -1,13 +1,13 @@
 #include "baliset_osc_server.h"
 
-void handle_osc_message(blst_system *bs, tosc_message *osc) {
+void blst_handle_osc_message(blst_system *bs, tosc_message *osc) {
   char *address = tosc_getAddress(osc);
   if(strncmp(address, "/node/add", strlen("/node/add")) == 0) {
     const char *type = tosc_getNextString(osc);
-    node *n = new_node(bs->p, type);
-    struct add_msg body = {.node = n};
-    struct rt_msg msg = {.type = ADD_NODE, .add_msg = body};
-    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
+    blst_node *n = blst_new_node(bs->p, type);
+    struct blst_add_msg body = {.node = n};
+    struct blst_rt_msg msg = {.type = ADD_NODE, .add_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct blst_rt_msg));
   } else if(strncmp(address, "/node/connect", strlen("/node/connect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
@@ -15,60 +15,61 @@ void handle_osc_message(blst_system *bs, tosc_message *osc) {
     int32_t inlet_idx = tosc_getNextInt32(osc);
 
     //TODO handle node not found or inlet not found, cycles
-    connection *in_conn = malloc(sizeof(connection));
-    connection *out_conn = malloc(sizeof(connection));
+    blst_connection *in_conn = malloc(sizeof(blst_connection));
+    blst_connection *out_conn = malloc(sizeof(blst_connection));
     out_conn->next = NULL;
     out_conn->node_id = in_node_id;
     out_conn->io_id = inlet_idx;
     in_conn->next = NULL;
     in_conn->node_id = out_node_id;
     in_conn->io_id = outlet_idx;
-    struct connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
-    struct rt_msg msg = {.type = CONNECT, .connect_msg = body};
-    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
+    struct blst_connect_msg body = {.out_conn = out_conn, .in_conn = in_conn};
+    struct blst_rt_msg msg = {.type = CONNECT, .connect_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct blst_rt_msg));
   } else if(strncmp(address, "/node/disconnect", strlen("/node/disconnect")) == 0) {
     int32_t out_node_id = tosc_getNextInt32(osc);
     int32_t outlet_idx = tosc_getNextInt32(osc);
     int32_t in_node_id = tosc_getNextInt32(osc);
     int32_t inlet_idx = tosc_getNextInt32(osc);
-    struct disconnect_msg body = {.out_node_id = out_node_id, .outlet_idx = outlet_idx, in_node_id = in_node_id, inlet_idx = inlet_idx};
-    struct rt_msg msg = {.type = DISCONNECT, .disconnect_msg = body};
-    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct rt_msg));
+    struct blst_disconnect_msg body = {.out_node_id = out_node_id, .outlet_idx = outlet_idx, in_node_id = in_node_id, inlet_idx = inlet_idx};
+    struct blst_rt_msg msg = {.type = DISCONNECT, .disconnect_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *)&msg, sizeof(struct blst_rt_msg));
   } else if(strncmp(address, "/node/delete", strlen("/node/delete")) == 0) {
     int32_t node_id = tosc_getNextInt32(osc);
-    struct delete_msg body = {.node_id = node_id};
-    struct rt_msg msg = {.type = DELETE_NODE, .delete_msg = body};
-    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+    struct blst_delete_msg body = {.node_id = node_id};
+    struct blst_rt_msg msg = {.type = DELETE_NODE, .delete_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct blst_rt_msg));
   } else if(strncmp(address, "/node/control", strlen("/node/control")) == 0) {
     int32_t node_id = tosc_getNextInt32(osc);
     int32_t ctl_id = tosc_getNextInt32(osc);
     float val = tosc_getNextFloat(osc);
-    struct control_msg body = {.node_id = node_id, .ctl_id = ctl_id, .val = val};
-    struct rt_msg msg = {.type = CONTROL, .control_msg = body};
-    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+    struct blst_control_msg body = {.node_id = node_id, .ctl_id = ctl_id, .val = val};
+    struct blst_rt_msg msg = {.type = CONTROL, .control_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct blst_rt_msg));
   } else if(strncmp(address, "/patch/free", strlen("/patch/free")) == 0) {
-    patch *new_p = new_patch(bs->audio_opts);
-    patch **old_p = malloc(sizeof(patch*));
+    blst_patch *new_p = blst_new_patch(bs->audio_opts);
+    blst_patch **old_p = malloc(sizeof(blst_patch*));
     int *done = malloc(sizeof(int));
     *done = 0;
-    struct replace_patch_msg body = {.done = done,
-                                     .new_p = new_p,
-                                     .old_p = old_p};
-    struct rt_msg msg = {.type = REPLACE_PATCH,
-                         .replace_patch_msg = body};
-    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct rt_msg));
+    struct blst_replace_patch_msg body = {.done = done,
+                                          .new_p = new_p,
+                                          .old_p = old_p};
+    struct blst_rt_msg msg = {.type = REPLACE_PATCH,
+                              .replace_patch_msg = body};
+    tpipe_write(&bs->consumer_pipe, (char *) &msg, sizeof(struct blst_rt_msg));
     //busy wait for response - this may be a terrible idea, might really need to use atomic vars here but we'll see what happens
     while(! *done) {
       usleep(1000);
     }
-    free_patch(*msg.replace_patch_msg.old_p);
+    //UPDATE I did get a SIGABRT crash here but I think it was because I was not initializing the node data pointer to NULL
+    blst_free_patch(*msg.replace_patch_msg.old_p);
     usleep(100);
   } else {
     printf("unexpected message: %s\n", address);
   }
 }
 
-void handle_non_rt_msg(blst_system *bs, struct non_rt_msg *msg) {
+void blst_handle_non_rt_msg(blst_system *bs, struct blst_non_rt_msg *msg) {
   switch(msg->type) {
   case FREE_PTR:
     printf("freeing pointer\n");
@@ -76,7 +77,7 @@ void handle_non_rt_msg(blst_system *bs, struct non_rt_msg *msg) {
     break;
   case FREE_NODE:
     printf("freeing node\n");
-    free_node(msg->free_node_msg.ptr);
+    blst_free_node(msg->free_node_msg.ptr);
     break;
   default:
     printf("handle_non_rt_msg: unrecognized msg_type\n");
@@ -86,11 +87,11 @@ void handle_non_rt_msg(blst_system *bs, struct non_rt_msg *msg) {
 //does this need some kind of synchronization?
 static volatile int keepRunning = 1;
 
-void stop_osc_server() {
+void blst_stop_osc_server() {
   keepRunning = 0;
 }
 
-void run_osc_server(blst_system *bs) {
+void blst_run_osc_server(blst_system *bs) {
   const int fd = socket(AF_INET, SOCK_DGRAM, 0); //ip v4 datagram socket
   fcntl(fd, F_SETFL, O_NONBLOCK); // set the socket to non-blocking
   struct sockaddr_in sin;
@@ -110,7 +111,7 @@ void run_osc_server(blst_system *bs) {
       buf = tpipe_getReadBuffer(&bs->producer_pipe, &len);
       assert(len > 0);
       assert(buf != NULL);
-      handle_non_rt_msg(bs, (struct non_rt_msg*) buf);
+      blst_handle_non_rt_msg(bs, (struct blst_non_rt_msg*) buf);
       tpipe_consume(&bs->producer_pipe);
     }
 
@@ -129,12 +130,12 @@ void run_osc_server(blst_system *bs) {
           /* const uint64_t timetag = tosc_getTimetag(&bundle); */
           tosc_message osc;
           while (tosc_getNextMessage(&bundle, &osc)) {
-            handle_osc_message(bs, &osc);
+            blst_handle_osc_message(bs, &osc);
           }
         } else {
           tosc_message osc;
           tosc_parseMessage(&osc, buffer, len);
-          handle_osc_message(bs, &osc);
+          blst_handle_osc_message(bs, &osc);
         }
       }
     }

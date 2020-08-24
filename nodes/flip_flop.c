@@ -5,7 +5,7 @@ typedef struct {
   float prev_trig_value;
 } flip_flop_data;
 
-flip_flop_data *new_flip_flop_data(const patch *p) {
+flip_flop_data *new_flip_flop_data(const blst_patch *p) {
   flip_flop_data *d = malloc(sizeof(flip_flop_data));
   d->flipped = 0;
   d->prev_trig_value = 0.0;
@@ -13,12 +13,12 @@ flip_flop_data *new_flip_flop_data(const patch *p) {
 }
 
 //TODO xfade on transition?
-void process_flip_flop(struct node *self) {
+void process_flip_flop(blst_node *self) {
   flip_flop_data *d = self->data;
-  inlet i_in = self->inlets[0];
-  inlet i_trig = self->inlets[1];
-  outlet o_a = self->outlets[0];
-  outlet o_b = self->outlets[1];
+  blst_inlet i_in = self->inlets[0];
+  blst_inlet i_trig = self->inlets[1];
+  blst_outlet o_a = self->outlets[0];
+  blst_outlet o_b = self->outlets[1];
   float *in_buf = i_in.buf;
   float *trig_buf = i_trig.buf;
   float ctl_trig = self->controls[0].val;
@@ -35,21 +35,21 @@ void process_flip_flop(struct node *self) {
   }
 }
 
-node *new_flip_flop(const patch *p) {
-  node *n = init_node(p, 2, 2, 1);
+blst_node *blst_new_flip_flop(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 2, 2, 1);
   n->data = new_flip_flop_data(p);
   n->process = &process_flip_flop;
 
   //flip_it toggle
   n->controls[0].val = 0.0;
 
-  init_inlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
 
   //trig inlet
-  init_inlet(p, n, 1);
+  blst_init_inlet(p, n, 1);
 
-  init_outlet(p, n, 0);
-  init_outlet(p, n, 1);
+  blst_init_outlet(p, n, 0);
+  blst_init_outlet(p, n, 1);
 
   return n;
 }

@@ -15,7 +15,7 @@ typedef struct {
   float rms_val;
 } noise_gate_data;
 
-noise_gate_data *new_noise_gate_data(const patch *p) {
+noise_gate_data *new_noise_gate_data(const blst_patch *p) {
   noise_gate_data *nd = malloc(sizeof(noise_gate_data));
   nd->num_attack_samples = (uint) ceil(p->audio_opts.sample_rate * 0.001);
   nd->num_release_samples = (uint) ceil(p->audio_opts.sample_rate * 0.01);
@@ -30,7 +30,7 @@ noise_gate_data *new_noise_gate_data(const patch *p) {
   nd->gate_open = 1;
   return nd;
 }
-void noise_gate_set_threshold(control *ctl, float val) {
+void noise_gate_set_threshold(blst_control *ctl, float val) {
   //convert db to amp, expect a range from like -100db to 0db (0 meaning unity gain)
   val = pow(10.0, val / 20.0);
   if(val >= 1.0) val = 1.0;
@@ -38,11 +38,11 @@ void noise_gate_set_threshold(control *ctl, float val) {
   ctl->val = val;
 }
 
-void process_noise_gate(struct node *self) {
+void process_noise_gate(blst_node *self) {
   noise_gate_data *data = self->data;
-  outlet o_out = self->outlets[0];
+  blst_outlet o_out = self->outlets[0];
   float *out_buf = o_out.buf;
-  inlet i_in = self->inlets[0];
+  blst_inlet i_in = self->inlets[0];
   float *in_buf = i_in.buf;
   float thresh = self->controls[0].val;
 
@@ -87,16 +87,16 @@ void process_noise_gate(struct node *self) {
 
 }
 
-node *new_noise_gate(const patch *p) {
-  node *n = init_node(p, 1, 1, 1);
+blst_node *blst_new_noise_gate(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 1, 1, 1);
   n->process = &process_noise_gate;
 
   n->data = new_noise_gate_data(p);
   n->controls[0].val = 1E-5;
   n->controls[0].set_control = &noise_gate_set_threshold;
 
-  init_inlet(p, n, 0);
-  init_outlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
 
   return n;
 }

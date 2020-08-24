@@ -12,29 +12,26 @@ typedef struct {
   float last;
 } hip_data;
 
-hip_data *new_hip_data(const patch *p) {
+hip_data *new_hip_data(const blst_patch *p) {
   hip_data *data = malloc(sizeof(hip_data));
   data->sample_rate = p->audio_opts.sample_rate;
   data->last = 0.0;
   return data;
 }
 
-void set_cutoff(control *ctl, float f) {
+void set_cutoff(blst_control *ctl, float f) {
   if(f < 0) f = 0;
   ctl->val = 1.0 - f * (2.0 * 3.14159) / 44100;
   if (ctl->val < 0)
     ctl->val = 0;
   else if (ctl->val > 1)
     ctl->val = 1;
-
-  printf("set coef to %9.6f", ctl->val);
-  //TODO pass node to controls
 }
 
-void process_hip(struct node *self) {
+void process_hip(blst_node *self) {
   hip_data *data = self->data;
 
-  outlet o_out = self->outlets[0];
+  blst_outlet o_out = self->outlets[0];
   float *in_buf = self->inlets[0].buf;
   float *out_buf = o_out.buf;
   float coef = self->controls[0].val;
@@ -50,13 +47,13 @@ void process_hip(struct node *self) {
   data->last = last;
 }
 
-node *new_hip(const patch *p) {
-  node *n = init_node(p, 1, 1, 1);
+blst_node *blst_new_hip(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 1, 1, 1);
   n->data = new_hip_data(p);
   n->process = &process_hip;
   n->controls[0].set_control = &set_cutoff;
   set_cutoff(&n->controls[0], 1.0);
-  init_inlet(p, n, 0);
-  init_outlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
   return n;
 }

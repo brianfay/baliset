@@ -58,9 +58,9 @@ int main() {
     fprintf(stderr, "unique name '%s' assigned\n", jack_get_client_name(client));
   }
 
-  audio_options a = {.buf_size = jack_get_buffer_size(client), .sample_rate = jack_get_sample_rate(client),
+  blst_audio_options a = {.buf_size = jack_get_buffer_size(client), .sample_rate = jack_get_sample_rate(client),
                      .hw_in_channels = 2, .hw_out_channels = 2};
-  blst_system *bs = new_blst_system(a);
+  blst_system *bs = blst_new_system(a);
 
   jack_set_process_callback(client, process, bs);
   jack_on_shutdown(client, jack_shutdown, 0);
@@ -104,9 +104,9 @@ int main() {
     }
   }
 
-  run_osc_server(bs); //this blocks
+  blst_run_osc_server(bs); //this blocks
 
-  free_blst_system(bs);
+  blst_free_system(bs);
 }
 
 //TODO: maybe handle jack server shutdown by waiting for new server to start up

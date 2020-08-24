@@ -8,9 +8,9 @@ typedef struct {
   unsigned int sample_rate;
 } delay_data;
 
-void process_delay(struct node *self) {
+void process_delay(blst_node *self) {
   delay_data *data = self->data;
-  outlet o_out = self->outlets[0];
+  blst_outlet o_out = self->outlets[0];
   float *out_buf = o_out.buf;
   float *in_buf = self->inlets[0].buf;
   float *delay_line = data->delay_line;
@@ -42,12 +42,12 @@ void process_delay(struct node *self) {
   }
 }
 
-void destroy_delay(struct node *self) {
+void destroy_delay(blst_node *self) {
   delay_data *d = self->data;
   free(d->delay_line);
 }
 
-delay_data *new_delay_data(const patch *p){
+delay_data *new_delay_data(const blst_patch *p){
   delay_data *data = malloc(sizeof(delay_data));
   data->max_delay_seconds = 3;
   data->sample_rate = p->audio_opts.sample_rate;
@@ -57,14 +57,14 @@ delay_data *new_delay_data(const patch *p){
   return data;
 }
 
-node *new_delay(const patch *p) {
-  node *n = init_node(p, 1, 1, 2);
+blst_node *blst_new_delay(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 1, 1, 2);
   n->data = new_delay_data(p);
   n->process = &process_delay;
   n->destroy = &destroy_delay;
 
   //in
-  init_inlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
   /* init_inlet(n, 1, "delay_time", 0.25); */
   /* init_inlet(n, 2, "feedback", 0.6); */
 
@@ -74,6 +74,6 @@ node *new_delay(const patch *p) {
   n->controls[1].val = 0.6;
 
   //out
-  init_outlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
   return n;
 }

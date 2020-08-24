@@ -7,7 +7,7 @@ typedef struct {
 } buthp_data;
 
 
-buthp_data *new_buthp_data(const patch *p) {
+buthp_data *new_buthp_data(const blst_patch *p) {
   buthp_data *data = malloc(sizeof(buthp_data));
   sp_create(&data->sp);
   sp_buthp_create(&data->buthp);
@@ -15,8 +15,8 @@ buthp_data *new_buthp_data(const patch *p) {
   return data;
 }
 
-void process_buthp(struct node *self) {
-  outlet o_out = self->outlets[0];
+void process_buthp(blst_node *self) {
+  blst_outlet o_out = self->outlets[0];
   float *out_buf = self->outlets[0].buf;
   float *in_buf = self->inlets[0].buf;
 
@@ -31,14 +31,14 @@ void process_buthp(struct node *self) {
   }
 }
 
-void destroy_buthp(struct node *self) {
+void destroy_buthp(blst_node *self) {
   buthp_data *data = self->data;
   sp_buthp_destroy(&data->buthp);
   sp_destroy(&data->sp);
 }
 
-node *new_buthp(const patch *p) {
-  node *n = init_node(p, 1, 1, 1);
+blst_node *blst_new_buthp(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 1, 1, 1);
   buthp_data *data = new_buthp_data(p);
 
   n->data = data;
@@ -47,8 +47,8 @@ node *new_buthp(const patch *p) {
 
   n->controls[0].val = 5.0;
 
-  init_inlet(p, n, 0);
-  init_outlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
 
   return n;
 }

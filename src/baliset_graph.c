@@ -1,8 +1,9 @@
 #include "baliset_graph.h"
+#include <math.h>
 
-void free_outlet_connections(outlet out) {
-  connection *ptr = out.connections;
-  connection *prev;
+void blst_free_outlet_connections(blst_outlet out) {
+  blst_connection *ptr = out.connections;
+  blst_connection *prev;
   while(ptr) {
     prev = ptr;
     ptr = ptr->next;
@@ -10,9 +11,9 @@ void free_outlet_connections(outlet out) {
   }
 }
 
-void free_inlet_connections(inlet in) {
-  connection *ptr = in.connections;
-  connection *prev;
+void blst_free_inlet_connections(blst_inlet in) {
+  blst_connection *ptr = in.connections;
+  blst_connection *prev;
   while(ptr) {
     prev = ptr;
     ptr = ptr->next;
@@ -20,44 +21,44 @@ void free_inlet_connections(inlet in) {
   }
 }
 
-void destroy_inlets(node *n) {
+void blst_destroy_inlets(blst_node *n) {
   if(n->num_inlets > 0) {
     for(int i = 0; i < n->num_inlets; i++) {
-      free_inlet_connections(n->inlets[i]);
+      blst_free_inlet_connections(n->inlets[i]);
       free(n->inlets[i].buf);
     }
     free(n->inlets);
   }
 }
 
-void destroy_outlets(node *n) {
+void blst_destroy_outlets(blst_node *n) {
   if(n->num_outlets > 0) {
     for(int i = 0; i < n->num_outlets; i++) {
-      free_outlet_connections(n->outlets[i]);
+      blst_free_outlet_connections(n->outlets[i]);
       free(n->outlets[i].buf);
     }
     free(n->outlets);
   }
 }
 
-void free_node_list(node *n) {
-  node *tmp;
+void blst_free_node_list(blst_node *n) {
+  blst_node *tmp;
   while (n) {
     tmp = n;
     n = n->next;
     if(tmp) {
-      free_node(tmp);
+      blst_free_node(tmp);
       free(tmp);
     }
   }
 }
 
-void add_node(patch *p, node *n) {
+void blst_add_node(blst_patch *p, blst_node *n) {
   n->id = p->next_id++;
   unsigned int idx = n->id % TABLE_SIZE;
 
   //add to table
-  node *head = p->table[idx];
+  blst_node *head = p->table[idx];
   //if it's the first thing ever, just set head
   if(!head) {
     head = n;
@@ -70,53 +71,54 @@ void add_node(patch *p, node *n) {
   head->prev = n;
   p->table[idx] = n;
 
-  sort_patch(p);
+  blst_sort_patch(p);
 }
 
-void remove_node(patch *p, node *n) {
+void blst_remove_node(blst_patch *p, blst_node *n) {
   if(n->prev) n->prev->next = n->next;
   if(n->next) n->next->prev = n->prev;
   unsigned int idx = n->id % TABLE_SIZE;
   if(p->table[idx] == n) p->table[idx] = n->next;
 
-  sort_patch(p);
+  blst_sort_patch(p);
 }
 
-void free_node(node *n) {
+void blst_free_node(blst_node *n) {
   //could we free all inlets/outlets here?
   free(n->data);
-  destroy_inlets(n);
-  destroy_outlets(n);
+  blst_destroy_inlets(n);
+  blst_destroy_outlets(n);
   if(n->num_controls > 0) {
     free(n->controls);
   }
   if (n->destroy) n->destroy(n);
 }
 
-void free_node_table(node_table table) {
+void blst_free_node_table(blst_node_table table) {
   for(int i = 0; i < TABLE_SIZE; i++) {
-    free_node_list(table[i]);
+    blst_free_node_list(table[i]);
   }
   free(table);
 }
 
-node *init_node(const patch *p, int num_inlets, int num_outlets, int num_controls) {
+blst_node *blst_init_node(const blst_patch *p, int num_inlets, int num_outlets, int num_controls) {
   assert(num_inlets >= 0);
   assert(num_outlets >= 0);
   assert(num_controls >= 0);
-  node *n = malloc(sizeof(node));
+  blst_node *n = malloc(sizeof(blst_node));
   n->process = NULL;
   n->destroy = NULL;
+  n->data = NULL;
   n->last_visited = -1;
   n->num_controls = num_controls;
 
   n->num_inlets = num_inlets;
-  if(num_inlets > 0) n->inlets = malloc(sizeof(inlet) * num_inlets);
+  if(num_inlets > 0) n->inlets = malloc(sizeof(blst_inlet) * num_inlets);
 
   n->num_outlets = num_outlets;
-  if(num_outlets > 0) n->outlets = malloc(sizeof(outlet) * num_outlets);
+  if(num_outlets > 0) n->outlets = malloc(sizeof(blst_outlet) * num_outlets);
 
-  if(num_controls > 0) n->controls = malloc(sizeof(control) * num_controls);
+  if(num_controls > 0) n->controls = malloc(sizeof(blst_control) * num_controls);
   for(int i=0; i < num_controls; i++) {
     n->controls[i].set_control = NULL;
   }
@@ -126,34 +128,41 @@ node *init_node(const patch *p, int num_inlets, int num_outlets, int num_control
   return n;
 }
 
-void init_inlet(const patch *p, node *n, int idx){
+void blst_init_inlet(const blst_patch *p, blst_node *n, int idx){
   assert(idx >= 0);
   assert(idx <= n->num_inlets);
-  inlet *in = &n->inlets[idx];
+  blst_inlet *in = &n->inlets[idx];
   in->buf = calloc(p->audio_opts.buf_size, sizeof(float));
   in->buf_size = p->audio_opts.buf_size;
   in->num_connections = 0;
   in->connections = NULL;
 }
 
-void init_outlet(const patch *p, node *n, int idx){
+void blst_init_outlet(const blst_patch *p, blst_node *n, int idx){
   assert(idx >= 0);
   assert(idx <= n->num_outlets);
-  outlet *out = &n->outlets[idx];
+  blst_outlet *out = &n->outlets[idx];
   out->buf = calloc(p->audio_opts.buf_size, sizeof(float));
   out->buf_size = p->audio_opts.buf_size;
   out->num_connections = 0;
   out->connections = NULL;
 }
 
-patch *new_patch(audio_options audio_opts) {
-  patch *p = malloc(sizeof(patch));
-  p->table = malloc(sizeof(node*) * TABLE_SIZE);
+void blst_init_wavetables(blst_patch *p) {
+  for(int i = 0; i < WAVETABLE_SIZE; i++) {
+    p->wavetables.sine_table[i] = sinf((float)i / (float)WAVETABLE_SIZE * M_PI * 2.0);
+  }
+}
+
+blst_patch *blst_new_patch(blst_audio_options audio_opts) {
+  blst_patch *p = malloc(sizeof(blst_patch));
+  blst_init_wavetables(p);
+  p->table = malloc(sizeof(blst_node*) * TABLE_SIZE);
   for(int i = 0; i < TABLE_SIZE; i++) p->table[i] = NULL;
   p->next_id = 0;
   p->audio_opts = audio_opts;
   p->order.top = -1;
-  p->hw_inlets = malloc(sizeof(inlet) * audio_opts.hw_out_channels);
+  p->hw_inlets = malloc(sizeof(blst_inlet) * audio_opts.hw_out_channels);
   for(int i = 0; i < audio_opts.hw_out_channels; i++){
     p->hw_inlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
     p->hw_inlets[i].buf_size = audio_opts.buf_size;
@@ -161,7 +170,7 @@ patch *new_patch(audio_options audio_opts) {
     p->hw_inlets[i].connections = NULL;
   }
 
-  p->hw_outlets = malloc(sizeof(outlet) * audio_opts.hw_in_channels);
+  p->hw_outlets = malloc(sizeof(blst_outlet) * audio_opts.hw_in_channels);
   for(int i = 0; i < audio_opts.hw_in_channels; i++){
     p->hw_outlets[i].buf = calloc(audio_opts.buf_size, sizeof(float));
     p->hw_outlets[i].buf_size = audio_opts.buf_size;
@@ -170,7 +179,7 @@ patch *new_patch(audio_options audio_opts) {
   }
 
 #ifdef BELA
-  p->digital_outlets = malloc(sizeof(outlet) * audio_opts.digital_channels);
+  p->digital_outlets = malloc(sizeof(blst_outlet) * audio_opts.digital_channels);
   for(int i = 0; i < audio_opts.digital_channels; i++){
     p->digital_outlets[i].buf = calloc(audio_opts.digital_frames, sizeof(float));
     p->digital_outlets[i].buf_size = audio_opts.digital_frames;
@@ -181,8 +190,8 @@ patch *new_patch(audio_options audio_opts) {
   return p;
 }
 
-node *get_node(const patch *p, unsigned int id) {
-  node *n = p->table[id % TABLE_SIZE];
+blst_node *blst_get_node(const blst_patch *p, unsigned int id) {
+  blst_node *n = p->table[id % TABLE_SIZE];
   while(n) {
     if(n->id == id) return n;
     n = n->next;
@@ -190,21 +199,21 @@ node *get_node(const patch *p, unsigned int id) {
   return NULL;
 }
 
-void add_connection(patch *p, connection *out_conn, connection *in_conn) {
+void blst_add_connection(blst_patch *p, blst_connection *out_conn, blst_connection *in_conn) {
   //add connection to both in node and out node
-  node *in_node = get_node(p, out_conn->node_id);
-  node *out_node = get_node(p, in_conn->node_id);
-  inlet *in = &in_node->inlets[out_conn->io_id];
-  outlet *out = &out_node->outlets[in_conn->io_id];
+  blst_node *in_node = blst_get_node(p, out_conn->node_id);
+  blst_node *out_node = blst_get_node(p, in_conn->node_id);
+  blst_inlet *in = &in_node->inlets[out_conn->io_id];
+  blst_outlet *out = &out_node->outlets[in_conn->io_id];
 
-  connection *in_ptr = in->connections;
-  connection *out_ptr = out->connections;
+  blst_connection *in_ptr = in->connections;
+  blst_connection *out_ptr = out->connections;
 
   if(!in_ptr) { //it's the first connection, add it to head
     in->connections = in_conn;
     in->num_connections++;
   } else {
-    connection *in_prev = in_ptr;
+    blst_connection *in_prev = in_ptr;
     while(in_ptr) {
       if(in_ptr->node_id == in_conn->node_id && in_ptr->io_id == in_conn->io_id){
         //if this is the case, we're already connected. return without connecting
@@ -221,7 +230,7 @@ void add_connection(patch *p, connection *out_conn, connection *in_conn) {
     out->connections = out_conn;
     out->num_connections++;
   } else {
-    connection *out_prev = out_ptr;
+    blst_connection *out_prev = out_ptr;
     while(out_ptr) {
       //don't need to check for dupes, should have caught it in the in_ptr case
       out_prev = out_ptr;
@@ -231,19 +240,19 @@ void add_connection(patch *p, connection *out_conn, connection *in_conn) {
     out_prev->next = out_conn;
   }
 
-  sort_patch(p);
+  blst_sort_patch(p);
 }
 
-struct disconnect_pair blst_disconnect(const patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx) {
-  node *out_node = get_node(p, out_node_id);
-  node *in_node = get_node(p, in_node_id);
-  inlet *in = &in_node->inlets[inlet_idx];
-  outlet *out = &out_node->outlets[outlet_idx];
+struct blst_disconnect_pair blst_disconnect(const blst_patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx) {
+  blst_node *out_node = blst_get_node(p, out_node_id);
+  blst_node *in_node = blst_get_node(p, in_node_id);
+  blst_inlet *in = &in_node->inlets[inlet_idx];
+  blst_outlet *out = &out_node->outlets[outlet_idx];
 
-  connection *out_ptr = out->connections;
-  connection *out_prev = out_ptr;
-  connection *in_ptr = in->connections;
-  connection *in_prev = in_ptr;
+  blst_connection *out_ptr = out->connections;
+  blst_connection *out_prev = out_ptr;
+  blst_connection *in_ptr = in->connections;
+  blst_connection *in_prev = in_ptr;
 
   while(out_ptr) {
     if(out_ptr->node_id == in_node_id && out_ptr->io_id == inlet_idx){
@@ -273,13 +282,13 @@ struct disconnect_pair blst_disconnect(const patch *p, int out_node_id, int outl
     in_ptr = in_ptr->next;
   }
 
-  struct disconnect_pair d = {in_ptr, out_ptr};
+  struct blst_disconnect_pair d = {in_ptr, out_ptr};
   return d;
 }
 
-void free_patch(patch *p) {
+void blst_free_patch(blst_patch *p) {
   //free each node
-  free_node_table(p->table);
+  blst_free_node_table(p->table);
   for(int i = 0; i < p->audio_opts.hw_out_channels; i++) {
     free(p->hw_inlets[i].buf);
   }
@@ -288,14 +297,15 @@ void free_patch(patch *p) {
   for(int i = 0; i < p->audio_opts.hw_in_channels; i++) {
     free(p->hw_outlets[i].buf);
   }
+  //TODO am I freeing digital outlets?
   free(p->hw_outlets);
   free(p);
 }
 
-void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
+void blst_connect(blst_patch *p, unsigned int out_node_id, unsigned int outlet_id,
                   unsigned int in_node_id, unsigned int inlet_id) {
-  connection *out_conn = malloc(sizeof(connection));
-  connection *in_conn = malloc(sizeof(connection));
+  blst_connection *out_conn = malloc(sizeof(blst_connection));
+  blst_connection *in_conn = malloc(sizeof(blst_connection));
 
   out_conn->next = NULL;
   out_conn->node_id = in_node_id;
@@ -305,18 +315,18 @@ void blst_connect(patch *p, unsigned int out_node_id, unsigned int outlet_id,
   in_conn->node_id = out_node_id;
   in_conn->io_id = outlet_id;
 
-  add_connection(p, out_conn, in_conn);
+  blst_add_connection(p, out_conn, in_conn);
 }
 
-void dfs_visit(const patch *p, unsigned int generation, unsigned int node_id, struct int_stack *s) {
-  node *n = get_node(p, node_id);
+void blst_dfs_visit(const blst_patch *p, unsigned int generation, unsigned int node_id, struct blst_int_stack *s) {
+  blst_node *n = blst_get_node(p, node_id);
   n->last_visited = generation;
   for(int i = 0; i < n->num_outlets; i++) {
-    connection *conn = n->outlets[i].connections;
+    blst_connection *conn = n->outlets[i].connections;
     while(conn) {
-      node *in = get_node(p, conn->node_id);
+      blst_node *in = blst_get_node(p, conn->node_id);
       if(in->last_visited != generation) {
-        dfs_visit(p, generation, conn->node_id, s);
+        blst_dfs_visit(p, generation, conn->node_id, s);
       }
       conn = conn->next;
     }
@@ -326,15 +336,15 @@ void dfs_visit(const patch *p, unsigned int generation, unsigned int node_id, st
   s->top++;
 }
 
-void sort_patch(patch *p) {
+void blst_sort_patch(blst_patch *p) {
   static int generation = -1;
   generation++;
-  struct int_stack ordered_nodes = {.top = 0, .stk= {0}};
+  struct blst_int_stack ordered_nodes = {.top = 0, .stk= {0}};
   for(int i = 0; i < TABLE_SIZE; i++) {
-    node *n = p->table[i];
+    blst_node *n = p->table[i];
     while(n) {
       if(n->last_visited != generation) {
-        dfs_visit(p, generation, n->id, &ordered_nodes);
+        blst_dfs_visit(p, generation, n->id, &ordered_nodes);
       }
       n = n->next;
     }
@@ -343,8 +353,8 @@ void sort_patch(patch *p) {
   p->order = ordered_nodes;
 }
 
-void zero_all_inlets(const patch *p) {
-  struct int_stack s = p->order;
+void blst_zero_all_inlets(const blst_patch *p) {
+  struct blst_int_stack s = p->order;
   for(int i = 0; i < p->audio_opts.hw_out_channels; i++) {
     float *b = p->hw_inlets[i].buf;
     for(int j = 0; j < p->hw_inlets[i].buf_size; j++) {
@@ -352,9 +362,9 @@ void zero_all_inlets(const patch *p) {
     }
   }
   while(s.top >= 0) {
-    node *n = get_node(p, s.stk[s.top]);
+    blst_node *n = blst_get_node(p, s.stk[s.top]);
     for(int i = 0; i < n->num_inlets; i++) {
-      inlet in = n->inlets[i];
+      blst_inlet in = n->inlets[i];
       for(int j = 0; j < in.buf_size; j++) {
         in.buf[j] = 0.f;
       }
@@ -363,8 +373,8 @@ void zero_all_inlets(const patch *p) {
   }
 }
 
-void set_control(node *n, int ctl_id, float val) {
-  control *ctl = &n->controls[ctl_id];
+void blst_set_control(blst_node *n, int ctl_id, float val) {
+  blst_control *ctl = &n->controls[ctl_id];
   if (ctl->set_control) {
     ctl->set_control(ctl, val);
   } else {
@@ -373,20 +383,20 @@ void set_control(node *n, int ctl_id, float val) {
 }
 
 
-void blst_process(const patch *p) {
-  zero_all_inlets(p);
+void blst_process(const blst_patch *p) {
+  blst_zero_all_inlets(p);
   int top = p->order.top;
   while(top >= 0) {
-    node *n = get_node(p, p->order.stk[top]);
+    blst_node *n = blst_get_node(p, p->order.stk[top]);
     if(n->process) n->process(n);
 
     //add outlet contents to connected inlets
     for(int i = 0; i < n->num_outlets; i++) {
-      outlet out = n->outlets[i];
-      connection *c = out.connections;
+      blst_outlet out = n->outlets[i];
+      blst_connection *c = out.connections;
       while(c) {
-        node *in_node = get_node(p, c->node_id);
-        inlet in = in_node->inlets[c->io_id];
+        blst_node *in_node = blst_get_node(p, c->node_id);
+        blst_inlet in = in_node->inlets[c->io_id];
         for(int idx = 0; idx < out.buf_size; idx++) {
           in.buf[idx] += out.buf[idx];
         }

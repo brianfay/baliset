@@ -9,7 +9,7 @@ typedef struct {
   unsigned int loop_length;
 } looper_data;
 
-looper_data *new_looper_data(const patch *p) {
+looper_data *new_looper_data(const blst_patch *p) {
   looper_data *ld = malloc(sizeof(looper_data));
   ld->loop_buf_size = p->audio_opts.sample_rate * 180;
   ld->buf = calloc(ld->loop_buf_size, sizeof(float)); //3 minutes, really long looper
@@ -20,13 +20,13 @@ looper_data *new_looper_data(const patch *p) {
   return ld;
 }
 
-void process_looper(struct node *self) {
+void process_looper(blst_node *self) {
   looper_data *ld = self->data;
-  inlet i_in = self->inlets[0];
-  inlet i_trig = self->inlets[1];
+  blst_inlet i_in = self->inlets[0];
+  blst_inlet i_trig = self->inlets[1];
   float *in_buf = i_in.buf;
   float *trig_buf = i_trig.buf;
-  outlet o_out = self->outlets[0];
+  blst_outlet o_out = self->outlets[0];
   float *out_buf = o_out.buf;
   float ctl_rate = self->controls[0].val;
   float ctl_trig = self->controls[1].val;
@@ -65,24 +65,24 @@ void process_looper(struct node *self) {
   }
 }
 
-void destroy_looper(struct node *self) {
+void destroy_looper(blst_node *self) {
   looper_data *ld = self->data;
   free(ld->buf);
 }
 
-node *new_looper(const patch *p) {
-  node *n = init_node(p, 2, 1, 2);
+blst_node *blst_new_looper(const blst_patch *p) {
+  blst_node *n = blst_init_node(p, 2, 1, 2);
   n->data = new_looper_data(p);
   n->process = &process_looper;
   n->destroy = &destroy_looper;
 
   //in
-  init_inlet(p, n, 0);
+  blst_init_inlet(p, n, 0);
   //trig
-  init_inlet(p, n, 1);
+  blst_init_inlet(p, n, 1);
 
   //out
-  init_outlet(p, n, 0);
+  blst_init_outlet(p, n, 0);
 
   //rate
   n->controls[0].val = 1.0;

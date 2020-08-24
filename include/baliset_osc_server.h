@@ -11,8 +11,8 @@ extern "C" {
 #define BALISET_OSC_SERVER
 
 
-void run_osc_server(blst_system *bs);
-void stop_osc_server();
+void blst_run_osc_server(blst_system *bs);
+void blst_stop_osc_server();
 
 #endif
 #ifdef __cplusplus

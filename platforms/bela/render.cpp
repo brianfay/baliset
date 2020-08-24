@@ -2,7 +2,7 @@
 #include <digital_gpio_mapping.h>
 #include <cmath>
 #include <csignal>
-#include "baliset.h"
+#include "baliset_osc_server.h"
 
 typedef struct
 {
@@ -60,7 +60,7 @@ bool setup(BelaContext *context, void *userData)
   btn3.last_frame_sampled = 0;
   btn3.state = 0;
 
-  audio_options audio_opts = {.buf_size=context->audioFrames, .sample_rate=context->audioSampleRate,
+  blst_audio_options audio_opts = {.buf_size=context->audioFrames, .sample_rate=context->audioSampleRate,
                               .hw_in_channels=context->audioInChannels, .hw_out_channels=context->audioOutChannels,
                               .digital_channels=3, .digital_frames=context->audioFrames}; //using audioFrames buffer size instead of digital
   bs = new_blst_system(audio_opts);
@@ -104,7 +104,7 @@ void render(BelaContext *context, void *userData)
     bs->p->hw_outlets[1].buf[i] = *in++;
   }
 
-  blst_process(bs);
+  blst_rt_process(bs);
 
   for(int i=0; i < context->audioFrames; i++) {
     for (unsigned int channel = 0; channel < context->audioOutChannels; channel++) {
