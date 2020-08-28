@@ -12,11 +12,5 @@ void process_mul(blst_node *self) {
 blst_node *blst_new_mul(const blst_patch *p) {
   blst_node *n = blst_init_node(p, 2, 1, 0);
   n->process = &process_mul;
-  //a
-  blst_init_inlet(p, n, 0);
-  //b
-  blst_init_inlet(p, n, 1);
-  //out
-  blst_init_outlet(p, n, 0);
   return n;
 }

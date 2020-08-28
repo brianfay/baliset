@@ -77,7 +77,7 @@ void blst_handle_non_rt_msg(blst_system *bs, struct blst_non_rt_msg *msg) {
     break;
   case FREE_NODE:
     printf("freeing node\n");
-    blst_free_node(msg->free_node_msg.ptr);
+    blst_free_node(&msg->free_node_msg.ptr);
     break;
   default:
     printf("handle_non_rt_msg: unrecognized msg_type\n");

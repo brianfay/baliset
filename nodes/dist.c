@@ -40,11 +40,6 @@ blst_node *blst_new_dist(const blst_patch *p) {
   sp_create(&data->sp);
   sp_dist_create(&data->ds);
 
-  //in
-  blst_init_inlet(p, n, 0);
-  //out
-  blst_init_outlet(p, n, 0);
-
   //pregain
   n->controls[0].val = 2.0;
   //postgain

@@ -10,13 +10,28 @@ int main() {
 
   blst_patch *p = blst_new_patch(a);
   blst_node *sin = blst_new_sin_osc(p);
+  blst_node *sin2 = blst_new_sin_osc(p);
   blst_node *dac = blst_new_dac(p);
 
   blst_add_node(p, sin);
+  blst_add_node(p, sin2);
   blst_add_node(p, dac);
 
   blst_connect(p, sin->id, 0, dac->id, 0);
-  blst_connect(p, sin->id, 0, dac->id, 1);
+  blst_connect(p, sin2->id, 0, dac->id, 0);
+
+  blst_connect(p, sin->id, 0, sin2->id, 0);
+  /* blst_connect(p, sin->id, 0, dac->id, 1); */
+  printf("connect err: %d\n", blst_connect(p, sin2->id, 0, sin->id, 0));
+
+  /* printf("err: %d\n", blst_remove_node(p, sin)); */
+  /* printf("err: %d\n", blst_remove_node(p, sin)); */
+
+  /* blst_free_node(sin); */
+  /* blst_free_node(&sin); */
+
+  /* printf("err: %d\n", blst_free_node(&sin)); */
+  /* printf("err: %d\n", blst_remove_node(p, sin)); */
 
   SF_INFO info;
   memset(&info, 0, sizeof(SF_INFO));

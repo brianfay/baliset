@@ -47,8 +47,5 @@ blst_node *blst_new_buthp(const blst_patch *p) {
 
   n->controls[0].val = 5.0;
 
-  blst_init_inlet(p, n, 0);
-  blst_init_outlet(p, n, 0);
-
   return n;
 }

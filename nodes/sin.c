@@ -48,7 +48,7 @@ sin_data *new_sin_data(const blst_patch *p){
   /* d->nlb = 18; */
   d->maxlens = (float)d->maxlen / (float)p->audio_opts.sample_rate;
   d->inlb = 1.0 / (1<<d->nlb);
-  d->lbmask = (1 << d->nlb) - 1;
+  d->lbmask = (1 << d->nlb) - 1; //& with this mask to get the lower bits (storing the fractional portion)
   d->lphs = 0;
   d->inc = 0;
 
@@ -60,11 +60,5 @@ blst_node *blst_new_sin_osc(const blst_patch *p) {
   blst_node *n = blst_init_node(p, 2, 1, 0);
   n->data = new_sin_data(p);
   n->process = &process_sin;
-  //freq
-  blst_init_inlet(p, n, 0);
-  //amp
-  blst_init_inlet(p, n, 1);
-  //out
-  blst_init_outlet(p, n, 0);
   return n;
 }

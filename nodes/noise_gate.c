@@ -95,8 +95,5 @@ blst_node *blst_new_noise_gate(const blst_patch *p) {
   n->controls[0].val = 1E-5;
   n->controls[0].set_control = &noise_gate_set_threshold;
 
-  blst_init_inlet(p, n, 0);
-  blst_init_outlet(p, n, 0);
-
   return n;
 }

@@ -14,8 +14,6 @@ void process_delay(blst_node *self) {
   float *out_buf = o_out.buf;
   float *in_buf = self->inlets[0].buf;
   float *delay_line = data->delay_line;
-  /* inlet i_delay_time = self->inlets[1]; */
-  /* inlet i_feedback = self->inlets[2]; */
   float delay_time = self->controls[0].val;
   float feedback = self->controls[1].val;
 
@@ -63,17 +61,9 @@ blst_node *blst_new_delay(const blst_patch *p) {
   n->process = &process_delay;
   n->destroy = &destroy_delay;
 
-  //in
-  blst_init_inlet(p, n, 0);
-  /* init_inlet(n, 1, "delay_time", 0.25); */
-  /* init_inlet(n, 2, "feedback", 0.6); */
-
   //delay_time
   n->controls[0].val = 0.25;
   //feedback
   n->controls[1].val = 0.6;
-
-  //out
-  blst_init_outlet(p, n, 0);
   return n;
 }

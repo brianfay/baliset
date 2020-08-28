@@ -33,13 +33,5 @@ blst_node *blst_new_adc(const blst_patch *p) {
   adc_data *data = malloc(sizeof(adc_data));
   data->hw_outlets = p->hw_outlets;
   n->data = data;
-  for(int i = 0; i < num_outlets; i++) {
-    blst_init_outlet(p, n, i);
-    /* outlet *out = &n->outlets[i]; */
-    /* out->buf = p->hw_outlets[i].buf; */
-    /* out->buf_size = p->hw_outlets[i].buf_size; */
-    /* out->num_connections = 0; */
-    /* out->connections = NULL; */
-  }
   return n;
 }

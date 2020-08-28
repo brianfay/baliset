@@ -10,7 +10,6 @@ void process_float(blst_node *self) {
 
 blst_node *blst_new_float(const blst_patch *p) {
   blst_node *n = blst_init_node(p, 0, 1, 1);
-  blst_init_outlet(p, n, 0);
   n->process = &process_float;
   n->controls[0].val = 0.0;
   return n;

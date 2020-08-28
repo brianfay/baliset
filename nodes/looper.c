@@ -76,14 +76,6 @@ blst_node *blst_new_looper(const blst_patch *p) {
   n->process = &process_looper;
   n->destroy = &destroy_looper;
 
-  //in
-  blst_init_inlet(p, n, 0);
-  //trig
-  blst_init_inlet(p, n, 1);
-
-  //out
-  blst_init_outlet(p, n, 0);
-
   //rate
   n->controls[0].val = 1.0;
   //trig

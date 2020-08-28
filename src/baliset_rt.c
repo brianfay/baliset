@@ -67,7 +67,6 @@ void blst_handle_rt_msg(blst_system *bs, struct blst_rt_msg *msg) {
   switch(msg->type) {
     case ADD_NODE:
       blst_add_node(p, msg->add_msg.node);
-      blst_sort_patch(p);
       break;
     case DELETE_NODE:
       {
@@ -100,6 +99,7 @@ void blst_handle_rt_msg(blst_system *bs, struct blst_rt_msg *msg) {
         }
         //now remove from node list
         blst_remove_node(p, n);
+
         struct blst_free_node_msg f = {.ptr = n};
         struct blst_non_rt_msg msg = {.type = FREE_NODE, .free_node_msg = f};
         tpipe_write(&bs->producer_pipe, (char *)&msg, sizeof(struct blst_non_rt_msg));

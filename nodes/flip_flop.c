@@ -42,14 +42,5 @@ blst_node *blst_new_flip_flop(const blst_patch *p) {
 
   //flip_it toggle
   n->controls[0].val = 0.0;
-
-  blst_init_inlet(p, n, 0);
-
-  //trig inlet
-  blst_init_inlet(p, n, 1);
-
-  blst_init_outlet(p, n, 0);
-  blst_init_outlet(p, n, 1);
-
   return n;
 }

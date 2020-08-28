@@ -59,7 +59,8 @@ typedef struct blst_node {
   unsigned int num_outlets;
   blst_control *controls;
   unsigned int num_controls;
-  unsigned int last_visited;// generation/timestamp thing
+  int visited; //"black"
+  int visiting; //"gray"
   void (*process) (struct blst_node *self);
   void (*destroy) (struct blst_node *self);
   //keeping doubly-linked lists of nodes inside of a hash table, so we need references to prev/next
@@ -100,13 +101,25 @@ struct blst_disconnect_pair {
   blst_connection *out_conn;
 };
 
+typedef enum {
+  BLST_NO_ERR,
+  BLST_NODE_ALREADY_ADDED,
+  BLST_NODE_ALREADY_REMOVED,
+  BLST_NODE_IS_CONNECTED,
+  BLST_NODE_ALREADY_FREE,
+  BLST_NO_IN_NODE,
+  BLST_NO_OUT_NODE,
+  BLST_NOT_ENOUGH_INLETS,
+  BLST_NOT_ENOUGH_OUTLETS,
+  BLST_ALREADY_CONNECTED,
+  BLST_CYCLE_DETECTED,
+} blst_err_code;
+
+blst_node *blst_get_node(const blst_patch *p, unsigned int id);
+
 blst_node *blst_new_node(const blst_patch *p, const char *type);
 
 blst_node *blst_init_node(const blst_patch *p, int num_inlets, int num_outlets, int num_controls);
-
-void blst_init_inlet(const blst_patch *p, blst_node *n, int idx);
-
-void blst_init_outlet(const blst_patch *p, blst_node *n, int idx);
 
 blst_patch *blst_new_patch(blst_audio_options audio_opts);
 
@@ -114,32 +127,27 @@ void blst_destroy_inlets(blst_node *n);
 
 void blst_destroy_outlets(blst_node *n);
 
-void blst_add_node(blst_patch *p, blst_node *n);
+blst_err_code blst_add_node(blst_patch *p, blst_node *n);
 
-void blst_remove_node(blst_patch *p, blst_node *n);//doesn't actually free the memory, hang on to that pointer!
+blst_err_code blst_remove_node(blst_patch *p, blst_node *n);//doesn't actually free the memory, hang on to that pointer!
 
 blst_node *blst_get_node(const blst_patch *p, unsigned int id);
 
-void blst_free_node(blst_node *n);
+blst_err_code blst_free_node(blst_node **n);
 
 void blst_free_patch(blst_patch *p);
 
-void blst_add_connection(blst_patch *p, blst_connection *out_conn, blst_connection *in_conn);
+blst_err_code blst_add_connection(blst_patch *p, blst_connection *out_conn, blst_connection *in_conn);
 
-//public
-void blst_connect(blst_patch *p, unsigned int out_node_id, unsigned int outlet_id,
+blst_err_code blst_connect(blst_patch *p, unsigned int out_node_id, unsigned int outlet_id,
                   unsigned int in_node_id, unsigned int inlet_id);
 
-//private
 struct blst_disconnect_pair blst_disconnect(const blst_patch *p, int out_node_id, int outlet_idx, int in_node_id, int inlet_idx);
 
-//private
-void blst_sort_patch(blst_patch *p);
+blst_err_code blst_sort_patch(blst_patch *p);
 
-//public
 void blst_process(const blst_patch *p);
 
-//public
 void blst_set_control(blst_node *n, int ctl_id, float val);
 
 //TODO: I dislike putting these all in the top-level header but am having trouble finding a cleaner approach in C

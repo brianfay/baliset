@@ -38,8 +38,5 @@ blst_node *blst_new_dac(const blst_patch *p) {
   n->process = &process_dac;
   n->controls[0].val = 1.0; //volume
   n->controls[0].set_control = &set_amp;
-  for(int i = 0; i < num_inlets; i++){
-    blst_init_inlet(p, n, i);
-  }
   return n;
 }

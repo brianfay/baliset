@@ -53,7 +53,5 @@ blst_node *blst_new_hip(const blst_patch *p) {
   n->process = &process_hip;
   n->controls[0].set_control = &set_cutoff;
   set_cutoff(&n->controls[0], 1.0);
-  blst_init_inlet(p, n, 0);
-  blst_init_outlet(p, n, 0);
   return n;
 }
