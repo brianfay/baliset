@@ -108,13 +108,13 @@ blst_err_code blst_remove_node(blst_patch *p, blst_node *n) {
 blst_err_code blst_free_node(blst_node **node) {
   blst_node *n = *node;
   if(!n) return BLST_NODE_ALREADY_FREE;
-  free(n->data);
   blst_destroy_inlets(n);
   blst_destroy_outlets(n);
   if(n->num_controls > 0) {
     free(n->controls);
   }
   if (n->destroy) n->destroy(n);
+  free(n->data);
   free(n);
   *node = NULL;
   return BLST_NO_ERR;
